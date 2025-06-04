@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 97%; /* Very light gray / Off-white */
+    --foreground: 0 0% 10%; /* Very dark gray / Near black for text */
+
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 0 0% 10%; /* Dark text on cards */
+
+    --popover: 0 0% 100%; /* White popovers */
+    --popover-foreground: 0 0% 10%; /* Dark text on popovers */
+
+    --primary: 30 100% 55%; /* Vibrant Orange */
+    --primary-foreground: 0 0% 100%; /* White text on orange */
+
+    --secondary: 0 0% 92%; /* Light gray for secondary elements */
+    --secondary-foreground: 0 0% 20%; /* Darker gray text for secondary */
+
+    --muted: 0 0% 95%; /* Subtly different light gray */
+    --muted-foreground: 0 0% 45%; /* Mid gray for muted text */
+
+    --accent: 25 100% 50%; /* Slightly deeper/redder Orange */
+    --accent-foreground: 0 0% 100%; /* White for text on accent */
+
+    --destructive: 0 70% 50%; /* Standard Red */
+    --destructive-foreground: 0 0% 100%; /* White for text on destructive */
+
+    --border: 0 0% 88%; /* Light gray border */
+    --input: 0 0% 96%; /* Very light gray for input fields */
+    --ring: 30 100% 55%; /* Primary color for focus rings */
+
+    --chart-1: 30 100% 55%; /* Primary Orange */
+    --chart-2: 25 100% 50%; /* Accent Orange */
+    --chart-3: 0 0% 30%;   /* Dark Gray */
+    --chart-4: 0 0% 60%;   /* Mid Gray */
+    --chart-5: 40 100% 55%; /* Yellow-Orange */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 12%; /* Dark Gray, matches logo background #1E1E1E */
+    --foreground: 0 0% 85%; /* Light gray for text */
+
+    --card: 0 0% 16%; /* Slightly lighter than background */
+    --card-foreground: 0 0% 85%; /* Light gray text on cards */
+
+    --popover: 0 0% 16%; /* Popover background */
+    --popover-foreground: 0 0% 85%; /* Popover text */
+
+    --primary: 30 100% 55%; /* Vibrant Orange */
+    --primary-foreground: 0 0% 10%; /* Dark text on orange */
+
+    --secondary: 0 0% 25%; /* Muted gray for secondary elements */
+    --secondary-foreground: 0 0% 80%; /* Light text for secondary */
+
+    --muted: 0 0% 20%; /* Slightly different gray for muted elements */
+    --muted-foreground: 0 0% 60%; /* Less prominent light gray */
+
+    --accent: 25 100% 50%; /* Accent Orange */
+    --accent-foreground: 0 0% 100%; /* White for text on accent */
+
+    --destructive: 0 70% 50%; /* Standard Red */
+    --destructive-foreground: 0 0% 100%; /* White text on destructive */
+
+    --border: 0 0% 22%; /* Visible border on card */
+    --input: 0 0% 18%; /* Input background */
+    --ring: 30 100% 55%; /* Primary color for focus rings */
+    
+    --chart-1: 30 100% 55%; /* Primary Orange */
+    --chart-2: 25 100% 50%; /* Accent Orange */
+    --chart-3: 0 0% 70%;   /* Light Gray */
+    --chart-4: 0 0% 45%;   /* Mid Gray */
+    --chart-5: 40 100% 55%; /* Yellow-Orange */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    @apply antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+  h1 { @apply text-4xl; }
+  h2 { @apply text-3xl; }
+  h3 { @apply text-2xl; }
+  h4 { @apply text-xl; }
+}
