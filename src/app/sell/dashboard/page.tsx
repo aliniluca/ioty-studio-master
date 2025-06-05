@@ -4,11 +4,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, LineChart, DollarSign, Package, Eye, Star, PlusCircle, List, ShoppingBag, Settings, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function SellerDashboardPage() {
   // Refactor user state to use Firebase Auth (onAuthStateChanged) instead of any mock function.
+  const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!currentUser || !currentUser.hasShop || !currentUser.shopId) {
+  useEffect(() => {
+    // TODO: Replace this with your real auth logic (e.g., Firebase, NextAuth, etc.)
+    // Simulate async user fetch
+    setTimeout(() => {
+      // Example user object; replace with real user data
+      setUser({ hasShop: false, shopId: null });
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user || !user.hasShop || !user.shopId) {
      return (
       <PlaceholderContent
         title="Opa! Se pare că nu ai un atelier."
@@ -16,14 +33,14 @@ export default function SellerDashboardPage() {
         icon={StoreIcon}
       >
         <Button asChild className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground">
-          <Link href={currentUser ? "/account/create-shop" : "/login"}>
-            {currentUser ? "Deschide un atelier acum" : "Intră în cont / Înscrie-te"}
+          <Link href={user ? "/account/create-shop" : "/login"}>
+            {user ? "Deschide un atelier acum" : "Intră în cont / Înscrie-te"}
           </Link>
         </Button>
       </PlaceholderContent>
     );
   }
-  const shopId = currentUser.shopId;
+  const shopId = user.shopId;
 
   return (
     <div className="space-y-8">
@@ -41,10 +58,10 @@ export default function SellerDashboardPage() {
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: 'Bani din minunății (luna aceasta)', value: '0.00 RON', icon: DollarSign, change: 'Așteptăm primele comori!', changeType: 'neutral' as const },
-          { title: 'Comori trimise (luna aceasta)', value: '0', icon: Package, change: 'Nicio comandă încă.', changeType: 'neutral' as const },
-          { title: 'Ochi curioși (vizualizări atelier)', value: '0', icon: Eye, change: 'Invită lumea să-ți vadă atelierul!', changeType: 'neutral' as const },
-          { title: 'Stelele atelierului (rating)', value: 'N/A', icon: Star, change: 'Primele povești de la clienți vor apărea aici.', changeType: 'neutral' as const },
+          { title: 'Bani din minunății (luna aceasta)', value: '0.00 RON', icon: DollarSign, change: 'Așteptăm primele comori!', changeType: 'neutral' },
+          { title: 'Comori trimise (luna aceasta)', value: '0', icon: Package, change: 'Nicio comandă încă.', changeType: 'neutral' },
+          { title: 'Ochi curioși (vizualizări atelier)', value: '0', icon: Eye, change: 'Invită lumea să-ți vadă atelierul!', changeType: 'neutral' },
+          { title: 'Stelele atelierului (rating)', value: 'N/A', icon: Star, change: 'Primele povești de la clienți vor apărea aici.', changeType: 'neutral' },
         ].map((stat) => (
           <Card key={stat.title} className="bg-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
