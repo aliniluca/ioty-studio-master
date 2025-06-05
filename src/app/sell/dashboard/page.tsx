@@ -1,3 +1,4 @@
+"use client";
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { LayoutDashboard, Store as StoreIcon } from 'lucide-react'; // Renamed Store to StoreIcon to avoid conflict
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
