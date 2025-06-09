@@ -8,6 +8,8 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function ProfileOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -63,6 +65,9 @@ export default function ProfileOrdersPage() {
               </div>
               <div className="text-lg font-bold">{(order.amount_total / 100).toFixed(2)} {order.currency?.toUpperCase() || 'RON'}</div>
               <div className="text-sm">Status: <span className="font-semibold">{order.payment_status}</span></div>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/profile/orders/${order.id}`}>Detalii &amp; PDF</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

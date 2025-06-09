@@ -23,6 +23,8 @@ A Next.js + TypeScript marketplace for handcrafted goods, inspired by Etsy, focu
 - **Product & Shop Data:** Product and shop data is now fetched from Firestore, not mock data.
 - **Admin Dashboard:** If a user is an admin (see below), a prominent moderation button appears in their dashboard linking to `/admin/moderate-listings`.
 - **Stripe Integration (in progress):** Stripe payments will be handled via a secure API route using Stripe test mode only. No real charges will be made. A new API route will be added for Stripe checkout sessions.
+- **Messaging:** Buyers can send messages to sellers from product/shop pages. Messages are stored in Firestore (`users/{sellerId}/messages`). Sellers receive in-app notifications for new messages and can reply from their dashboard. Sellers can open messages, mark them as read, and reply in a threaded conversation.
+- **Order Details & Receipts:** Buyers can view detailed order pages and download PDF receipts for each order from their order history.
 
 ## Admin Features
 - **Admin Status:** Admin status is determined by the `isAdmin` field in the Firestore `users` collection. If set to `true`, the user will see a prominent moderation button in their dashboard.
@@ -50,6 +52,16 @@ A Next.js + TypeScript marketplace for handcrafted goods, inspired by Etsy, focu
 ## References
 - [docs/blueprint.md](docs/blueprint.md) — Core features & style guide
 - [src/lib/mock-data-types.ts](src/lib/mock-data-types.ts) — Data models
+
+## Usage
+### Messaging
+To send a message to a seller, use the "Contactează meșterul" button on a product or shop page. Sellers can view and reply to messages from their dashboard under "Mesaje".
+
+### Seller Messaging
+Sellers can open messages in their dashboard, which marks them as read, and reply directly in a threaded conversation.
+
+### Order Details & Receipts
+Buyers can click on any order in their order history to view full details and download a PDF receipt.
 
 ---
 

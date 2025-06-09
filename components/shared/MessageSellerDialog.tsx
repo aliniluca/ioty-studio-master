@@ -1,4 +1,3 @@
-
 // src/components/shared/MessageSellerDialog.tsx
 "use client";
 
@@ -17,18 +16,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Feather } from 'lucide-react';
+import { setDoc, doc } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import { auth } from '@/firebase/firebaseConfig';
 
 interface MessageSellerDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   sellerName: string;
+  sellerId: string;
 }
 
-export function MessageSellerDialog({ isOpen, onOpenChange, sellerName }: MessageSellerDialogProps) {
+export function MessageSellerDialog({ isOpen, onOpenChange, sellerName, sellerId }: MessageSellerDialogProps) {
   const { toast } = useToast();
   const [message, setMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() === "") {
       toast({
@@ -38,15 +41,44 @@ export function MessageSellerDialog({ isOpen, onOpenChange, sellerName }: Messag
       });
       return;
     }
-
-    // Simulate sending message
-    console.log(`Mesaj pentru ${sellerName}: ${message}`);
-    toast({
-      title: "Mesaj trimis cu zbor de pană!",
-      description: `Mesajul tău fermecat pentru ${sellerName} a fost trimis prin vânt. (Simulare, desigur!)`,
-    });
-    setMessage("");
-    onOpenChange(false); // Close dialog on successful "send"
+    try {
+      if (!auth.currentUser) throw new Error('Trebuie să fii autentificat pentru a trimite mesaje.');
+      const sender = auth.currentUser;
+      const msgId = uuidv4();
+      const notifId = uuidv4();
+      // Save message to seller's messages
+      await setDoc(doc(db, 'users', sellerId, 'messages', msgId), {
+        id: msgId,
+        senderName: sender.displayName || sender.email || 'Călător necunoscut',
+        senderId: sender.uid,
+        subject: `Mesaj de la ${sender.displayName || sender.email}`,
+        body: message,
+        createdAt: new Date().toISOString(),
+        read: false,
+      });
+      // Create notification for seller
+      await setDoc(doc(db, 'users', sellerId, 'notifications', notifId), {
+        id: notifId,
+        type: 'message',
+        title: 'Ai primit un mesaj nou!',
+        body: `Ai primit un mesaj de la ${sender.displayName || sender.email}.`,
+        createdAt: new Date().toISOString(),
+        read: false,
+        senderId: sender.uid,
+      });
+      toast({
+        title: "Mesaj trimis cu succes!",
+        description: `Mesajul tău pentru ${sellerName} a fost trimis.",
+      });
+      setMessage("");
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Eroare la trimiterea mesajului",
+        description: err.message || 'A apărut o problemă. Încearcă din nou!',
+      });
+    }
   };
 
   return (
