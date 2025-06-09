@@ -65,6 +65,9 @@ export default function SellerOrdersPage() {
               </div>
               <div className="text-lg font-bold">{(order.amount_total / 100).toFixed(2)} {order.currency?.toUpperCase() || 'RON'}</div>
               <div className="text-sm">Status: <span className="font-semibold">{order.payment_status}</span></div>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/sell/orders/${order.id}`}>Detalii &amp; PDF</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

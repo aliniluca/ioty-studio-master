@@ -24,7 +24,9 @@ A Next.js + TypeScript marketplace for handcrafted goods, inspired by Etsy, focu
 - **Admin Dashboard:** If a user is an admin (see below), a prominent moderation button appears in their dashboard linking to `/admin/moderate-listings`.
 - **Stripe Integration (in progress):** Stripe payments will be handled via a secure API route using Stripe test mode only. No real charges will be made. A new API route will be added for Stripe checkout sessions.
 - **Messaging:** Buyers can send messages to sellers from product/shop pages. Messages are stored in Firestore (`users/{sellerId}/messages`). Sellers receive in-app notifications for new messages and can reply from their dashboard. Sellers can open messages, mark them as read, and reply in a threaded conversation.
-- **Order Details & Receipts:** Buyers can view detailed order pages and download PDF receipts for each order from their order history.
+- **Order Details & Receipts:** Buyers and sellers can view detailed order pages and download PDF receipts for each order from their order history or dashboard.
+- **Shop Reviews & Ratings:** Buyers can leave reviews for shops after orders. Shop pages display average rating and all reviews.
+- **Shop Policies & FAQ:** Sellers can set shop policies and FAQ in their dashboard. Buyers can view these on shop pages.
 
 ## Admin Features
 - **Admin Status:** Admin status is determined by the `isAdmin` field in the Firestore `users` collection. If set to `true`, the user will see a prominent moderation button in their dashboard.
@@ -61,7 +63,13 @@ To send a message to a seller, use the "Contactează meșterul" button on a prod
 Sellers can open messages in their dashboard, which marks them as read, and reply directly in a threaded conversation.
 
 ### Order Details & Receipts
-Buyers can click on any order in their order history to view full details and download a PDF receipt.
+Buyers can click on any order in their order history to view full details and download a PDF receipt. Sellers can do the same from their dashboard for each order they have received.
+
+### Shop Reviews & Ratings
+After completing an order, buyers can leave a review and rating for the shop. Shop pages display the average rating and all reviews from buyers.
+
+### Shop Policies & FAQ
+Sellers can set shop policies (returns, shipping, etc.) and FAQ in their dashboard. These are displayed on the shop page for buyers.
 
 ---
 

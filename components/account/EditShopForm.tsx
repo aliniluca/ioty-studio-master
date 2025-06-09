@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { ShopDetails } from '@/lib/mock-data-types';
 import { Save, UploadCloud, Trash2 } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface EditShopFormProps {
   // currentShopData is now fetched inside based on shopId if available
@@ -39,6 +39,8 @@ export function EditShopForm({}: EditShopFormProps) {
   const [tagline, setTagline] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
+  const [policies, setPolicies] = useState<string>('');
+  const [faq, setFaq] = useState<string>('');
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -64,6 +66,8 @@ export function EditShopForm({}: EditShopFormProps) {
         setLocation(data.location);
         setAvatarPreview(data.avatarUrl);
         setBannerPreview(data.bannerUrl);
+        setPolicies(data.policies || '');
+        setFaq(data.faq || '');
       }
       setIsLoading(false);
     }
@@ -118,6 +122,17 @@ export function EditShopForm({}: EditShopFormProps) {
       title: "Atelier șlefuit cu meșteșug!",
       description: `Detaliile atelierului "${shopName}" au fost actualizate cu succes! (Simulare)`,
     });
+
+    await setDoc(doc(db, 'shops', auth.currentUser.uid), {
+      name: shopName,
+      tagline,
+      bio,
+      location,
+      avatarUrl: finalAvatarUrl,
+      bannerUrl: finalBannerUrl,
+      policies,
+      faq,
+    }, { merge: true });
 
     router.push('/account');
     router.refresh();
@@ -241,6 +256,15 @@ export function EditShopForm({}: EditShopFormProps) {
             </div>
           )}
           <p className="text-xs text-muted-foreground text-center">Un banner de 1200x300px va arăta grozav.</p>
+        </div>
+
+        <div className="mb-4">
+          <Label htmlFor="policies">Politici ale atelierului</Label>
+          <Textarea id="policies" value={policies} onChange={e => setPolicies(e.target.value)} placeholder="Ex: Politica de retur, livrare, garanție..." rows={4} />
+        </div>
+        <div className="mb-4">
+          <Label htmlFor="faq">Întrebări frecvente (FAQ)</Label>
+          <Textarea id="faq" value={faq} onChange={e => setFaq(e.target.value)} placeholder="Ex: Cum pot personaliza o comandă? Cât durează livrarea?..." rows={4} />
         </div>
 
       </CardContent>

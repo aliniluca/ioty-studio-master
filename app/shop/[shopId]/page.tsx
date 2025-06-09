@@ -2,7 +2,7 @@
 "use client"; 
 import { useState, useEffect } from 'react';
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
-import { Store, AlertTriangle, Heart as HeartIcon } from 'lucide-react';
+import { Store, AlertTriangle, Heart as HeartIcon, Star } from 'lucide-react';
 import Image from 'next/image';
 import { StarRating } from '@/components/shared/StarRating';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Review as ReviewType, ShopDetails, Listing } from '@/lib/mock-data-types'; 
 import { MessageSellerDialog } from '@/components/shared/MessageSellerDialog';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase';
 import { setDoc, deleteDoc } from 'firebase/firestore';
@@ -29,6 +29,8 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [shopReviews, setShopReviews] = useState<any[]>([]);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchShopAndListings() {
@@ -43,13 +45,28 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
           const listingsQuery = query(collection(db, 'listings'), where('sellerId', '==', params.shopId));
           const listingsSnap = await getDocs(listingsQuery);
           setShopListings(listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[]);
+          // Fetch reviews for this shop
+          const reviewsQuery = query(collection(db, 'shops', params.shopId, 'reviews'), orderBy('createdAt', 'desc'));
+          const reviewsSnap = await getDocs(reviewsQuery);
+          const reviews = reviewsSnap.docs.map(doc => doc.data());
+          setShopReviews(reviews);
+          if (reviews.length > 0) {
+            const avg = reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length;
+            setAverageRating(avg);
+          } else {
+            setAverageRating(null);
+          }
         } else {
           setShop(null);
           setShopListings([]);
+          setShopReviews([]);
+          setAverageRating(null);
         }
       } catch (e) {
         setShop(null);
         setShopListings([]);
+        setShopReviews([]);
+        setAverageRating(null);
       }
       setIsLoading(false);
     }
@@ -133,7 +150,16 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
           <AvatarFallback className="text-4xl">{shop.name.substring(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex-grow text-center md:text-left pt-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">{shop.name}</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-3xl font-bold text-foreground">{shop.name}</h1>
+            {averageRating !== null && (
+              <span className="flex items-center gap-1 text-yellow-500 font-semibold text-lg">
+                {averageRating.toFixed(1)}
+                <Star className="h-5 w-5" />
+                <span className="text-muted-foreground text-sm">({shopReviews.length} recenzii)</span>
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">{shop.tagline}</p>
           <div className="mt-2 flex items-center justify-center md:justify-start gap-4 text-sm text-muted-foreground">
             <StarRating rating={shop.shopRating} reviewCount={shop.shopReviewCount} />
@@ -227,6 +253,49 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Shop Reviews Section */}
+      <section className="mt-10">
+        <h2 className="text-2xl font-bold mb-4">Recenzii atelier</h2>
+        {shopReviews.length === 0 ? (
+          <div className="text-muted-foreground">Acest atelier nu are încă recenzii.</div>
+        ) : (
+          <div className="space-y-6">
+            {shopReviews.map((review, idx) => (
+              <div key={review.id || idx} className="border rounded-lg p-4 bg-card">
+                <div className="flex items-center gap-2 mb-1">
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} className={`h-4 w-4 ${i <= review.rating ? 'text-yellow-500' : 'text-muted-foreground'}`} />
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-2">{new Date(review.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mb-1">{review.userEmail}</div>
+                <div>{review.comment}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Shop Policies & FAQ Section */}
+      <section className="mt-10">
+        <h2 className="text-2xl font-bold mb-4">Politici și Întrebări frecvente</h2>
+        {shop.policies ? (
+          <div className="mb-6">
+            <h3 className="font-semibold mb-1">Politici ale atelierului</h3>
+            <div className="whitespace-pre-line text-muted-foreground">{shop.policies}</div>
+          </div>
+        ) : null}
+        {shop.faq ? (
+          <div>
+            <h3 className="font-semibold mb-1">Întrebări frecvente (FAQ)</h3>
+            <div className="whitespace-pre-line text-muted-foreground">{shop.faq}</div>
+          </div>
+        ) : null}
+        {!shop.policies && !shop.faq && (
+          <div className="text-muted-foreground">Acest atelier nu a adăugat încă politici sau întrebări frecvente.</div>
+        )}
+      </section>
     </div>
   );
 }
