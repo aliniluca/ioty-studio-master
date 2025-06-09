@@ -7,7 +7,7 @@ import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -20,11 +20,20 @@ export default function MyAccountPage() {
       if (user) {
         // Fetch shop info
         const shopDoc = await getDoc(doc(db, 'shops', user.uid));
+        // Fetch admin status from custom claims
+        let isAdmin = false;
+        try {
+          const tokenResult = await getIdTokenResult(user, true);
+          isAdmin = !!tokenResult.claims.admin;
+        } catch (e) {
+          isAdmin = false;
+        }
         let userWithShop = {
           ...user,
           hasShop: false,
           shopId: undefined,
           shopName: undefined,
+          isAdmin,
         };
         if (shopDoc.exists()) {
           const shopData = shopDoc.data();

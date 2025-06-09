@@ -13,6 +13,9 @@ import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { navigationCategories, type NavCategory, type SubCategory } from '@/lib/nav-data';
 import type { ProductDetails, Listing } from '@/lib/mock-data-types';
 import { productDetailsToListing } from '@/lib/mock-data-types';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { AlertTriangle } from 'lucide-react';
 
 
 const categoryTranslations: Record<string, string> = {
@@ -61,7 +64,7 @@ function getCategoryDisplayName(categoryId: string): string {
 }
 
 
-export default function CategoryPage({ params, searchParams }: { params: { categoryId: string }, searchParams?: { [key: string]: string | string[] | undefined } }) {
+export default async function CategoryPage({ params, searchParams }: { params: { categoryId: string }, searchParams?: { [key: string]: string | string[] | undefined } }) {
   const { categoryId } = params;
   const searchQuery = searchParams?.q as string | undefined;
   const subcategorySlug = searchParams?.subcategory as string | undefined;
@@ -69,7 +72,21 @@ export default function CategoryPage({ params, searchParams }: { params: { categ
   const currentCategory = findCategory(categoryId);
   const currentSubcategory = currentCategory && subcategorySlug ? findSubcategory(currentCategory, subcategorySlug) : undefined;
 
+  // Fetch all products from Firestore
   let allProducts: ProductDetails[] = [];
+  try {
+    const querySnapshot = await getDocs(collection(db, 'listings'));
+    allProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ProductDetails[];
+  } catch (e) {
+    return (
+      <PlaceholderContent
+        title="Eroare la încărcarea produselor"
+        description="Nu s-au putut încărca făuriturile din tărâm. Încearcă să reîncarci pagina."
+        icon={AlertTriangle}
+      />
+    );
+  }
+
   let filteredProducts: ProductDetails[] = [];
 
   if (categoryId.toLowerCase() === 'all') {

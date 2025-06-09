@@ -36,6 +36,20 @@ export function AccountDashboard({ user }: AccountDashboardProps) {
       </Card>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Admin Moderation Button */}
+        {user.isAdmin && (
+          <Card className="bg-primary text-primary-foreground col-span-full">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl"><span role="img" aria-label="admin">🛡️</span> Panou de Moderare (Admin)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="w-full bg-white text-primary hover:bg-primary-foreground hover:text-white font-bold text-lg">
+                <Link href="/admin/moderate-listings">Aprobă/Moderează Minunății</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* General Account Management */}
         <Card className="bg-card">
           <CardHeader>

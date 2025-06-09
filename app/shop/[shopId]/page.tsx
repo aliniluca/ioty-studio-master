@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Review as ReviewType, ShopDetails, Listing } from '@/lib/mock-data-types'; 
 import { MessageSellerDialog } from '@/components/shared/MessageSellerDialog';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function ShopPage({ params }: { params: { shopId: string } }) {
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
@@ -21,10 +23,31 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (params.shopId) {
-      // Refactor shop details and listings to use Firestore only.
+    async function fetchShopAndListings() {
+      setIsLoading(true);
+      try {
+        // Fetch shop details
+        const shopRef = doc(db, 'shops', params.shopId);
+        const shopSnap = await getDoc(shopRef);
+        if (shopSnap.exists()) {
+          setShop({ id: shopSnap.id, ...shopSnap.data() } as ShopDetails);
+          // Fetch listings for this shop
+          const listingsQuery = query(collection(db, 'listings'), where('sellerId', '==', params.shopId));
+          const listingsSnap = await getDocs(listingsQuery);
+          setShopListings(listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[]);
+        } else {
+          setShop(null);
+          setShopListings([]);
+        }
+      } catch (e) {
+        setShop(null);
+        setShopListings([]);
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
+    if (params.shopId) {
+      fetchShopAndListings();
+    }
   }, [params.shopId]);
 
   if (isLoading) {
