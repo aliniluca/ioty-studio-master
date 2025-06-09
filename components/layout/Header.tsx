@@ -142,7 +142,7 @@ export function Header() {
           </div>
 
           <div className="flex-grow flex justify-center px-4 md:px-8">
-            <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl">
+            <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl flex items-center gap-2">
               <Input
                 type="search"
                 placeholder="Caută minunății, meșteri sau povești..."
@@ -154,6 +154,16 @@ export function Header() {
               <Button type="submit" size="icon" variant="ghost" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full hover:bg-primary/10">
                 <Search className="h-5 w-5 text-primary" />
                 <span className="sr-only">Caută</span>
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="absolute right-10 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full"
+                aria-label="Căutare avansată"
+                onClick={() => router.push(`/?advanced=1`)}
+              >
+                <Settings2 className="h-5 w-5 text-primary" />
               </Button>
             </form>
           </div>
