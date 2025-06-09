@@ -4,6 +4,7 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Toaster } from "@/components/ui/toaster"
+import { NotificationBell } from '@/components/shared/NotificationBell';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,6 +27,9 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <div className="flex flex-col min-h-screen bg-background">
           <Header />
+          <div className="absolute top-4 right-8 z-50">
+            <NotificationBell />
+          </div>
           <main className="flex-grow container mx-auto px-4 py-8">
             {children}
           </main>

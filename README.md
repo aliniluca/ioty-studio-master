@@ -22,6 +22,7 @@ A Next.js + TypeScript marketplace for handcrafted goods, inspired by Etsy, focu
 - **Blog:** Blog UI structure (no real content yet)
 - **Product & Shop Data:** Product and shop data is now fetched from Firestore, not mock data.
 - **Admin Dashboard:** If a user is an admin (see below), a prominent moderation button appears in their dashboard linking to `/admin/moderate-listings`.
+- **Stripe Integration (in progress):** Stripe payments will be handled via a secure API route using Stripe test mode only. No real charges will be made. A new API route will be added for Stripe checkout sessions.
 
 ## Admin Features
 - **Admin Status:** Admin status is determined by the `isAdmin` field in the Firestore `users` collection. If set to `true`, the user will see a prominent moderation button in their dashboard.

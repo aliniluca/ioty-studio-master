@@ -1,4 +1,3 @@
-
 "use client";
 import Image from 'next/image';
 import Link from 'next/link';
@@ -7,14 +6,40 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Minus, Plus, Trash2, ShoppingCart, WandSparkles } from 'lucide-react'; // Removed X
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 const cartItems: any[] = []; 
 
 export default function CartPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingEstimate = cartItems.length > 0 ? 15.00 : 0; 
   const taxEstimate = subtotal * 0.08; 
   const total = subtotal + shippingEstimate + taxEstimate;
+
+  // Handler for Stripe checkout
+  const handleCheckout = async () => {
+    setLoading(true);
+    try {
+      // Call the API route to create a Stripe Checkout session
+      const response = await fetch('/api/checkout_sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: cartItems })
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url; // Redirect to Stripe Checkout
+      } else {
+        alert('A apărut o problemă la inițierea plății.');
+      }
+    } catch (error) {
+      alert('Eroare la inițierea plății.');
+    }
+    setLoading(false);
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -93,8 +118,8 @@ export default function CartPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex-col space-y-3">
-                <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                  <WandSparkles className="mr-2 h-5 w-5" /> Spre casa de marcat fermecată!
+                <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleCheckout} disabled={loading}>
+                  <WandSparkles className="mr-2 h-5 w-5" /> {loading ? 'Se redirecționează...' : 'Spre casa de marcat fermecată!'}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
                   Drumul și taxele se dezvăluie la finalul descântecului. Plata se face printr-un portal magic (Stripe).

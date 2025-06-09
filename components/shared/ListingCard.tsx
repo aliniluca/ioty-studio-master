@@ -1,14 +1,18 @@
-
 "use client";
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StarRating } from './StarRating';
-import { Heart, ShoppingCart, AlertTriangle } from 'lucide-react'; 
+import { Heart, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { Listing } from '@/lib/mock-data-types'; 
+import type { Listing } from '@/lib/mock-data-types';
 import { Badge } from '../ui/badge';
+import { useEffect, useState } from 'react';
+import { db, auth } from '@/lib/firebase';
+import { doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { Heart as HeartIcon, HeartOff } from 'lucide-react';
 
 interface ListingCardProps {
   listing: Listing;
@@ -16,6 +20,24 @@ interface ListingCardProps {
 
 export function ListingCard({ listing }: ListingCardProps) {
   const { toast } = useToast();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        // Check if this product is in the user's wishlist
+        const favDoc = await getDoc(doc(db, 'users', user.uid, 'wishlist', listing.id));
+        setIsFavorite(favDoc.exists());
+      } else {
+        setUserId(null);
+        setIsFavorite(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [listing.id]);
 
   const handleAddToCart = () => {
     if (listing.status !== 'approved') {
@@ -26,19 +48,47 @@ export function ListingCard({ listing }: ListingCardProps) {
       });
       return;
     }
-    console.log(`Minunăția ${listing.name} a sărit în coșuleț (ID: ${listing.id})`);
     toast({
       title: "În coșuleț a sărit!",
-      description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat. (Simulare)`,
+      description: `Minunăția \"${listing.name}\" e acum în coșulețul tău fermecat. (Simulare)`,
     });
   };
 
-  const handleAddToFavorites = () => {
-    console.log(`Minunăția ${listing.name} a fost pusă la inimă (ID: ${listing.id})`);
-    toast({
-      title: "Pusă la inimă!",
-      description: `Comoara "${listing.name}" e acum în lista ta de dorințe strălucitoare. (Simulare)`,
-    });
+  const handleToggleFavorite = async () => {
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Autentificare necesară",
+        description: "Trebuie să fii autentificat pentru a adăuga la favorite.",
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      const favRef = doc(db, 'users', userId, 'wishlist', listing.id);
+      if (isFavorite) {
+        await deleteDoc(favRef);
+        setIsFavorite(false);
+        toast({
+          title: "Eliminată din favorite!",
+          description: `Comoara \"${listing.name}\" a fost scoasă din lista ta de dorințe.`,
+        });
+      } else {
+        await setDoc(favRef, { addedAt: new Date() });
+        setIsFavorite(true);
+        toast({
+          title: "Pusă la inimă!",
+          description: `Comoara \"${listing.name}\" e acum în lista ta de dorințe strălucitoare.`,
+        });
+      }
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Eroare la favorite",
+        description: "A apărut o problemă la actualizarea favoritei. Încearcă din nou!",
+      });
+    }
+    setLoading(false);
   };
 
   return (
@@ -90,14 +140,15 @@ export function ListingCard({ listing }: ListingCardProps) {
           <ShoppingCart className="mr-2 h-4 w-4" /> În coșuleț
         </Button>
         <Button 
-          variant="outline" 
+          variant={isFavorite ? "default" : "outline"} 
           size="icon" 
-          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 border-border hover:border-destructive/50 shrink-0 transition-colors"
-          onClick={handleAddToFavorites}
-          aria-label={`Pune la inimă ${listing.name}`}
+          className={`shrink-0 transition-colors ${isFavorite ? 'text-destructive bg-destructive/10 border-destructive/50' : 'text-muted-foreground hover:text-destructive hover:bg-destructive/10 border-border hover:border-destructive/50'}`}
+          onClick={handleToggleFavorite}
+          aria-label={isFavorite ? `Elimină din favorite ${listing.name}` : `Pune la inimă ${listing.name}`}
+          disabled={loading}
         >
-          <Heart className="h-5 w-5" />
-          <span className="sr-only">Pune la inimă</span>
+          {isFavorite ? <HeartIcon fill="currentColor" className="h-5 w-5" /> : <HeartIcon className="h-5 w-5" />}
+          <span className="sr-only">{isFavorite ? 'Elimină din favorite' : 'Pune la inimă'}</span>
         </Button>
       </CardFooter>
     </Card>

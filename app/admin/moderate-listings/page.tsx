@@ -14,7 +14,8 @@ import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
 const statusTranslations: Record<ListingStatus, string> = {
   approved: "Aprobată",
@@ -57,12 +58,36 @@ export default function ModerateListingsPage() {
           title: "Stare actualizată!",
           description: `Minunăția \"${listingName}\" a fost marcată ca aprobată.`,
         });
+        // --- Notification logic ---
+        const notifId = uuidv4();
+        await setDoc(doc(db, 'users', pendingListings.find(l => l.id === listingId)?.seller.id, 'notifications', notifId), {
+          id: notifId,
+          type: 'listing',
+          title: 'Minunăția ta a fost aprobată!',
+          body: `Anunțul "${listingName}" a fost aprobat și este acum vizibil în târg!`,
+          createdAt: new Date().toISOString(),
+          read: false,
+          listingId: listingId,
+        });
+        // --- End notification logic ---
       } else if (newStatus === 'rejected') {
         await updateDoc(listingRef, { status: 'rejected', rejectionReason: reason || '' });
         toast({
           title: "Stare actualizată!",
           description: `Minunăția \"${listingName}\" a fost respinsă.`,
         });
+        // --- Notification logic ---
+        const notifId = uuidv4();
+        await setDoc(doc(db, 'users', pendingListings.find(l => l.id === listingId)?.seller.id, 'notifications', notifId), {
+          id: notifId,
+          type: 'listing',
+          title: 'Minunăția ta a fost respinsă',
+          body: `Anunțul "${listingName}" a fost respins de moderatori. Editează detaliile și retrimite-l spre aprobare.`,
+          createdAt: new Date().toISOString(),
+          read: false,
+          listingId: listingId,
+        });
+        // --- End notification logic ---
       }
       fetchPendingListings();
     } catch (error) {

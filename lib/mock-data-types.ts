@@ -140,3 +140,16 @@ export function EditShopForm({}: EditShopFormProps) {
   // ... restul codului
 }
 
+export interface Notification {
+  id: string;
+  type: 'order' | 'listing' | 'message' | 'system';
+  title: string;
+  body: string;
+  createdAt: string; // ISO string
+  read: boolean;
+  orderId?: string;
+  listingId?: string;
+  senderId?: string;
+  extra?: Record<string, any>;
+}
+

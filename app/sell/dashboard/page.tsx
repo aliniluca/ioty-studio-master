@@ -6,6 +6,10 @@ import { BarChart, LineChart, DollarSign, Package, Eye, Star, PlusCircle, List, 
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 
 export default function SellerDashboardPage() {
   // Refactor user state to use Firebase Auth (onAuthStateChanged) instead of any mock function.
@@ -47,7 +51,10 @@ export default function SellerDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-foreground">Pupitrul meșterului faur</h1>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              Pupitrul meșterului faur
+              <span className="ml-2"><NotificationBell /></span>
+            </h1>
             <p className="text-muted-foreground">Salutări, meștere iscusit! De aici îți orânduiești atelierul și urmărești cum prind viață minunățiile tale.</p>
         </div>
         <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">

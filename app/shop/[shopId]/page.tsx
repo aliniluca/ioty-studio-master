@@ -2,7 +2,7 @@
 "use client"; 
 import { useState, useEffect } from 'react';
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
-import { Store, AlertTriangle } from 'lucide-react';
+import { Store, AlertTriangle, Heart as HeartIcon } from 'lucide-react';
 import Image from 'next/image';
 import { StarRating } from '@/components/shared/StarRating';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,20 @@ import type { Review as ReviewType, ShopDetails, Listing } from '@/lib/mock-data
 import { MessageSellerDialog } from '@/components/shared/MessageSellerDialog';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
+import { setDoc, deleteDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function ShopPage({ params }: { params: { shopId: string } }) {
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [shop, setShop] = useState<ShopDetails | null>(null);
   const [shopListings, setShopListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   useEffect(() => {
     async function fetchShopAndListings() {
@@ -49,6 +57,58 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
       fetchShopAndListings();
     }
   }, [params.shopId]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        // Check if this shop is in the user's favoriteShops
+        const favDoc = await getDoc(doc(db, 'users', user.uid, 'favoriteShops', params.shopId));
+        setIsFavorite(favDoc.exists());
+      } else {
+        setUserId(null);
+        setIsFavorite(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [params.shopId]);
+
+  const handleToggleFavoriteShop = async () => {
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Autentificare necesară",
+        description: "Trebuie să fii autentificat pentru a adăuga la favorite.",
+      });
+      return;
+    }
+    setFavLoading(true);
+    try {
+      const favRef = doc(db, 'users', userId, 'favoriteShops', params.shopId);
+      if (isFavorite) {
+        await deleteDoc(favRef);
+        setIsFavorite(false);
+        toast({
+          title: "Atelier eliminat din favorite!",
+          description: `Atelierul \"${shop?.name}\" a fost scos din lista ta de ateliere favorite.`,
+        });
+      } else {
+        await setDoc(favRef, { addedAt: new Date() });
+        setIsFavorite(true);
+        toast({
+          title: "Atelier pus la inimă!",
+          description: `Atelierul \"${shop?.name}\" e acum în lista ta de ateliere favorite.`,
+        });
+      }
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Eroare la favorite",
+        description: "A apărut o problemă la actualizarea favoritei. Încearcă din nou!",
+      });
+    }
+    setFavLoading(false);
+  };
 
   if (isLoading) {
     return <div className="text-center py-10"><p className="text-muted-foreground">Se caută atelierul prin tărâmul ioty...</p></div>;
@@ -84,7 +144,16 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 mt-4 md:mt-0">
-          <Button variant="outline">Adaugă atelierul la favorite</Button>
+          <Button
+            variant={isFavorite ? "default" : "outline"}
+            className={`flex items-center gap-2 ${isFavorite ? 'text-destructive bg-destructive/10 border-destructive/50' : 'text-muted-foreground hover:text-destructive hover:bg-destructive/10 border-border hover:border-destructive/50'}`}
+            onClick={handleToggleFavoriteShop}
+            disabled={favLoading}
+            aria-label={isFavorite ? `Elimină atelierul din favorite` : `Adaugă atelierul la favorite`}
+          >
+            <HeartIcon className="h-5 w-5" fill={isFavorite ? 'currentColor' : 'none'} />
+            {isFavorite ? 'În favorite' : 'Adaugă atelierul la favorite'}
+          </Button>
           <Button variant="default" onClick={() => setIsMessageDialogOpen(true)}>Trimite un mesaj meșterului</Button>
         </div>
       </div>
