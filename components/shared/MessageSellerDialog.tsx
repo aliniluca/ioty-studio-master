@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Send, Feather } from 'lucide-react';
 import { setDoc, doc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { auth } from '@/firebase/firebaseConfig';
+import { auth, db } from '@/lib/firebase';
 
 interface MessageSellerDialogProps {
   isOpen: boolean;
