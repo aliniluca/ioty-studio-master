@@ -68,7 +68,7 @@ export function MessageSellerDialog({ isOpen, onOpenChange, sellerName, sellerId
       });
       toast({
         title: "Mesaj trimis cu succes!",
-        description: `Mesajul tău pentru ${sellerName} a fost trimis.",
+        description: `Mesajul tău pentru ${sellerName} a fost trimis.`,
       });
       setMessage("");
       onOpenChange(false);
