@@ -115,24 +115,6 @@ export function SearchSection() {
 
   return (
     <>
-      {/* Basic Search Form (when not advanced) */}
-      {!showAdvanced && (
-        <form onSubmit={handleSearch} className="mb-8 max-w-2xl mx-auto">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Caută minunății, meșteri sau povești..."
-              className="flex-1 border rounded-lg px-4 py-3 text-base"
-            />
-            <button type="submit" className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90">
-              Caută
-            </button>
-          </div>
-        </form>
-      )}
-      
       {/* Advanced Search Filters (only when showAdvanced) */}
       {showAdvanced && (
         <form onSubmit={handleSearch} className="mb-8 max-w-4xl mx-auto">
