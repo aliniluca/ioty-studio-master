@@ -197,23 +197,40 @@ export function SearchSection() {
       {!searching && results.length > 0 && (
         <div className="mb-8 max-w-4xl mx-auto">
           <h2 className="text-xl font-bold mb-4">Rezultate ateliere ({results.length})</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {results.map(shop => (
-              <div key={shop.id} className="border rounded-lg p-4 bg-card">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-lg">{shop.name}</span>
-                  {shop.shopRating && (
-                    <span className="flex items-center gap-1 text-yellow-500 font-semibold text-base">
-                      {shop.shopRating.toFixed(1)}
-                      <Star className="h-4 w-4" />
-                      <span className="text-muted-foreground text-xs">({shop.shopReviewCount || 0})</span>
-                    </span>
+              <a
+                key={shop.id}
+                href={`/shop/${shop.id}`}
+                className="group block border rounded-xl p-6 bg-card shadow-md hover:shadow-lg transition-all duration-200 hover:bg-primary/5 text-center cursor-pointer h-full"
+                style={{ textDecoration: 'none' }}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary bg-muted flex items-center justify-center mb-2">
+                    {shop.avatarUrl ? (
+                      <img
+                        src={shop.avatarUrl}
+                        alt={shop.name}
+                        className="object-cover w-full h-full"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="text-3xl font-bold text-primary">
+                        {shop.name?.substring(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-bold text-lg text-foreground group-hover:text-primary mb-1 truncate w-full">
+                    {shop.name}
+                  </div>
+                  {shop.tagline && (
+                    <div className="text-muted-foreground text-sm mb-2 line-clamp-2">{shop.tagline}</div>
+                  )}
+                  {shop.bio && !shop.tagline && (
+                    <div className="text-muted-foreground text-sm mb-2 line-clamp-2">{shop.bio}</div>
                   )}
                 </div>
-                <div className="text-muted-foreground mb-2">{shop.tagline}</div>
-                <div className="mb-2 line-clamp-2">{shop.bio}</div>
-                <a href={`/shop/${shop.id}`} className="text-primary underline">Vezi atelierul</a>
-              </div>
+              </a>
             ))}
           </div>
         </div>
