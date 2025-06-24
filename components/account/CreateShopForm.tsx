@@ -103,7 +103,7 @@ export function CreateShopForm() {
 
 
     try {
-      await setDoc(doc(db, 'shops', auth.currentUser.uid), {
+      await setDoc(doc(db, 'shops', newShopId), {
         id: newShopId,
         name: shopName,
         tagline,

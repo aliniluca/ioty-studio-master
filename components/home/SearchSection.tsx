@@ -52,6 +52,7 @@ export function SearchSection() {
     const shops = shopsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     console.log('All shops fetched:', shops.length);
     console.log('Shop names:', shops.map(s => s.name));
+    console.log('Shop IDs:', shops.map(s => s.id));
     
     // Fetch all products
     const productsSnap = await getDocs(collection(db, 'listings'));

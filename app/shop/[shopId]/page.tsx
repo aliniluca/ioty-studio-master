@@ -35,18 +35,25 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
   useEffect(() => {
     async function fetchShopAndListings() {
       setIsLoading(true);
+      // Extract the real shop ID by removing the 'shop_' prefix
+      const realShopId = params.shopId.startsWith('shop_') ? params.shopId.substring(5) : params.shopId;
+      console.log('Fetching shop with ID:', params.shopId);
+      console.log('Real shop ID:', realShopId);
       try {
-        // Fetch shop details
-        const shopRef = doc(db, 'shops', params.shopId);
+        // Fetch shop details using the real shop ID
+        const shopRef = doc(db, 'shops', realShopId);
         const shopSnap = await getDoc(shopRef);
+        console.log('Shop exists:', shopSnap.exists());
         if (shopSnap.exists()) {
-          setShop({ id: shopSnap.id, ...shopSnap.data() } as ShopDetails);
-          // Fetch listings for this shop
-          const listingsQuery = query(collection(db, 'listings'), where('sellerId', '==', params.shopId));
+          const shopData = { id: shopSnap.id, ...shopSnap.data() } as ShopDetails;
+          console.log('Shop data:', shopData);
+          setShop(shopData);
+          // Fetch listings for this shop using the real shop ID
+          const listingsQuery = query(collection(db, 'listings'), where('sellerId', '==', realShopId));
           const listingsSnap = await getDocs(listingsQuery);
           setShopListings(listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[]);
-          // Fetch reviews for this shop
-          const reviewsQuery = query(collection(db, 'shops', params.shopId, 'reviews'), orderBy('createdAt', 'desc'));
+          // Fetch reviews for this shop using the real shop ID
+          const reviewsQuery = query(collection(db, 'shops', realShopId, 'reviews'), orderBy('createdAt', 'desc'));
           const reviewsSnap = await getDocs(reviewsQuery);
           const reviews = reviewsSnap.docs.map(doc => doc.data());
           setShopReviews(reviews);
@@ -57,12 +64,14 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
             setAverageRating(null);
           }
         } else {
+          console.log('Shop not found in database');
           setShop(null);
           setShopListings([]);
           setShopReviews([]);
           setAverageRating(null);
         }
       } catch (e) {
+        console.error('Error fetching shop:', e);
         setShop(null);
         setShopListings([]);
         setShopReviews([]);
@@ -79,8 +88,10 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
+        // Extract the real shop ID for favorites
+        const realShopId = params.shopId.startsWith('shop_') ? params.shopId.substring(5) : params.shopId;
         // Check if this shop is in the user's favoriteShops
-        const favDoc = await getDoc(doc(db, 'users', user.uid, 'favoriteShops', params.shopId));
+        const favDoc = await getDoc(doc(db, 'users', user.uid, 'favoriteShops', realShopId));
         setIsFavorite(favDoc.exists());
       } else {
         setUserId(null);
@@ -101,20 +112,22 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
     }
     setFavLoading(true);
     try {
-      const favRef = doc(db, 'users', userId, 'favoriteShops', params.shopId);
+      // Extract the real shop ID for favorites
+      const realShopId = params.shopId.startsWith('shop_') ? params.shopId.substring(5) : params.shopId;
+      const favRef = doc(db, 'users', userId, 'favoriteShops', realShopId);
       if (isFavorite) {
         await deleteDoc(favRef);
         setIsFavorite(false);
         toast({
           title: "Atelier eliminat din favorite!",
-          description: `Atelierul \"${shop?.name}\" a fost scos din lista ta de ateliere favorite.`,
+          description: `Atelierul "${shop?.name}" a fost scos din lista ta de ateliere favorite.`,
         });
       } else {
         await setDoc(favRef, { addedAt: new Date() });
         setIsFavorite(true);
         toast({
           title: "Atelier pus la inimă!",
-          description: `Atelierul \"${shop?.name}\" e acum în lista ta de ateliere favorite.`,
+          description: `Atelierul "${shop?.name}" e acum în lista ta de ateliere favorite.`,
         });
       }
     } catch (e) {
