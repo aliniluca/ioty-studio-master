@@ -35,12 +35,16 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
   useEffect(() => {
     async function fetchShopAndListings() {
       setIsLoading(true);
-      // Extract the real shop ID by removing the 'shop_' prefix
-      const realShopId = params.shopId.startsWith('shop_') ? params.shopId.substring(5) : params.shopId;
+      // Extract the user ID from the shopId (shop_<userId>...)
+      let realShopId = params.shopId;
+      if (params.shopId.startsWith('shop_')) {
+        const parts = params.shopId.substring(5).split('_');
+        realShopId = parts[0];
+      }
       console.log('Fetching shop with ID:', params.shopId);
-      console.log('Real shop ID:', realShopId);
+      console.log('User ID used as shop document ID:', realShopId);
       try {
-        // Fetch shop details using the real shop ID
+        // Fetch shop details using the user ID
         const shopRef = doc(db, 'shops', realShopId);
         const shopSnap = await getDoc(shopRef);
         console.log('Shop exists:', shopSnap.exists());
@@ -48,11 +52,11 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
           const shopData = { id: shopSnap.id, ...shopSnap.data() } as ShopDetails;
           console.log('Shop data:', shopData);
           setShop(shopData);
-          // Fetch listings for this shop using the real shop ID
+          // Fetch listings for this shop using the user ID
           const listingsQuery = query(collection(db, 'listings'), where('sellerId', '==', realShopId));
           const listingsSnap = await getDocs(listingsQuery);
           setShopListings(listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[]);
-          // Fetch reviews for this shop using the real shop ID
+          // Fetch reviews for this shop using the user ID
           const reviewsQuery = query(collection(db, 'shops', realShopId, 'reviews'), orderBy('createdAt', 'desc'));
           const reviewsSnap = await getDocs(reviewsQuery);
           const reviews = reviewsSnap.docs.map(doc => doc.data());
@@ -88,8 +92,12 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
-        // Extract the real shop ID for favorites
-        const realShopId = params.shopId.startsWith('shop_') ? params.shopId.substring(5) : params.shopId;
+        // Extract the user ID from the shopId
+        let realShopId = params.shopId;
+        if (params.shopId.startsWith('shop_')) {
+          const parts = params.shopId.substring(5).split('_');
+          realShopId = parts[0];
+        }
         // Check if this shop is in the user's favoriteShops
         const favDoc = await getDoc(doc(db, 'users', user.uid, 'favoriteShops', realShopId));
         setIsFavorite(favDoc.exists());
@@ -112,8 +120,12 @@ export default function ShopPage({ params }: { params: { shopId: string } }) {
     }
     setFavLoading(true);
     try {
-      // Extract the real shop ID for favorites
-      const realShopId = params.shopId.startsWith('shop_') ? params.shopId.substring(5) : params.shopId;
+      // Extract the user ID from the shopId
+      let realShopId = params.shopId;
+      if (params.shopId.startsWith('shop_')) {
+        const parts = params.shopId.substring(5).split('_');
+        realShopId = parts[0];
+      }
       const favRef = doc(db, 'users', userId, 'favoriteShops', realShopId);
       if (isFavorite) {
         await deleteDoc(favRef);
