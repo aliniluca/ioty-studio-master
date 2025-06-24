@@ -53,7 +53,8 @@ export function Header() {
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (searchTerm.trim()) {
-      router.push(`/category/all?q=${encodeURIComponent(searchTerm.trim())}`);
+      // Redirect to advanced search with the search term
+      router.push(`/?advanced=1&q=${encodeURIComponent(searchTerm.trim())}`);
       setSearchTerm('');
     }
   };

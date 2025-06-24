@@ -69,14 +69,34 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           console.log("Product data:", docSnap.data());
-          setProduct(docSnap.data() as ProductDetails);
+          const productData = docSnap.data() as ProductDetails;
+          setProduct(productData);
+          
+          // Fetch seller information if product has a sellerId
+          if (productData.sellerId) {
+            try {
+              const sellerRef = doc(db, 'shops', productData.sellerId);
+              const sellerSnap = await getDoc(sellerRef);
+              if (sellerSnap.exists()) {
+                const sellerData = { id: sellerSnap.id, ...sellerSnap.data() } as ShopDetails;
+                setSeller(sellerData);
+              } else {
+                setSeller(null);
+              }
+            } catch (error) {
+              console.error("Error fetching seller:", error);
+              setSeller(null);
+            }
+          }
         } else {
           console.log("No such product!");
           setProduct(null);
+          setSeller(null);
         }
       } catch (error) {
         console.error("Error fetching product:", error);
         setProduct(null);
+        setSeller(null);
       }
       setLoading(false);
     }

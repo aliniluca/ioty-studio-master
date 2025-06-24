@@ -33,12 +33,26 @@ export function SearchSection() {
     }
   }, [searchParams]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-search when search term is provided in URL
+  useEffect(() => {
+    const searchTerm = searchParams.get('q');
+    if (searchTerm) {
+      setSearch(searchTerm);
+      // Perform search automatically
+      performSearch(searchTerm);
+    }
+  }, [searchParams]);
+
+  const performSearch = async (searchTerm: string) => {
     setSearching(true);
+    console.log('Searching for:', searchTerm);
+    
     // Fetch all shops
     const shopsSnap = await getDocs(collection(db, 'shops'));
     const shops = shopsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('All shops fetched:', shops.length);
+    console.log('Shop names:', shops.map(s => s.name));
+    
     // Fetch all products
     const productsSnap = await getDocs(collection(db, 'listings'));
     const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -53,7 +67,7 @@ export function SearchSection() {
     // Compute score for each shop
     const scored = filtered.map(shop => {
       let score = 0;
-      const term = search.toLowerCase();
+      const term = searchTerm.toLowerCase();
       if (shop.name?.toLowerCase().includes(term)) score += 5;
       if (shop.tagline?.toLowerCase().includes(term)) score += 3;
       if (shop.bio?.toLowerCase().includes(term)) score += 2;
@@ -61,13 +75,15 @@ export function SearchSection() {
       if (shop.faq?.toLowerCase().includes(term)) score += 1;
       if (shop.shopReviewCount) score += Math.min(shop.shopReviewCount, 10);
       if (shop.shopRating) score += shop.shopRating * 2;
+      console.log(`Shop "${shop.name}" score: ${score} (term: "${term}")`);
       return { ...shop, score };
     });
     const ranked = scored.filter(s => s.score > 0).sort((a, b) => b.score - a.score);
+    console.log('Ranked shops:', ranked.map(s => ({ name: s.name, score: s.score })));
     // Product search and ranking
     let productScored = products.map(product => {
       let score = 0;
-      const term = search.toLowerCase();
+      const term = searchTerm.toLowerCase();
       if (product.name?.toLowerCase().includes(term)) score += 5;
       if (product.description?.toLowerCase().includes(term)) score += 3;
       if (product.category?.toLowerCase().includes(term)) score += 2;
@@ -91,12 +107,42 @@ export function SearchSection() {
     setSearching(false);
   };
 
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(search);
+  };
+
   return (
     <>
+      {/* Basic Search Form (when not advanced) */}
+      {!showAdvanced && (
+        <form onSubmit={handleSearch} className="mb-8 max-w-2xl mx-auto">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Caută minunății, meșteri sau povești..."
+              className="flex-1 border rounded-lg px-4 py-3 text-base"
+            />
+            <button type="submit" className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90">
+              Caută
+            </button>
+          </div>
+        </form>
+      )}
+      
       {/* Advanced Search Filters (only when showAdvanced) */}
       {showAdvanced && (
         <form onSubmit={handleSearch} className="mb-8 max-w-4xl mx-auto">
           <div className="w-full flex flex-wrap gap-2 mt-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Caută minunății, meșteri sau povești..."
+              className="flex-1 border rounded px-4 py-2"
+            />
             <select value={category} onChange={e => setCategory(e.target.value)} className="border rounded px-2 py-2" aria-label="Categorie atelier">
               <option value="">Toate categoriile</option>
               {navigationCategories.map(cat => (
@@ -159,9 +205,15 @@ export function SearchSection() {
       )}
       {/* Search Results */}
       {searching && <div className="mb-8 text-center">Se caută...</div>}
+      {!searching && (search || searchParams.get('q')) && results.length === 0 && productResults.length === 0 && (
+        <div className="mb-8 text-center">
+          <p className="text-lg text-muted-foreground">Nu s-au găsit rezultate pentru "{search || searchParams.get('q')}"</p>
+          <p className="text-sm text-muted-foreground">Încearcă să cauți cu alți termeni sau explorează categoriile noastre.</p>
+        </div>
+      )}
       {!searching && results.length > 0 && (
         <div className="mb-8 max-w-4xl mx-auto">
-          <h2 className="text-xl font-bold mb-4">Rezultate ateliere</h2>
+          <h2 className="text-xl font-bold mb-4">Rezultate ateliere ({results.length})</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {results.map(shop => (
               <div key={shop.id} className="border rounded-lg p-4 bg-card">
@@ -185,7 +237,7 @@ export function SearchSection() {
       )}
       {!searching && productResults.length > 0 && (
         <div className="mb-8 max-w-4xl mx-auto">
-          <h2 className="text-xl font-bold mb-4">Rezultate produse</h2>
+          <h2 className="text-xl font-bold mb-4">Rezultate produse ({productResults.length})</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {productResults.map(product => (
               <ListingCard key={product.id} listing={product} />
