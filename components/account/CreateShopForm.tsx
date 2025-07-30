@@ -91,7 +91,7 @@ export function CreateShopForm() {
       return;
     }
 
-    const newShopId = `shop_${auth.currentUser.uid}_${uuidv4()}`; 
+    const newShopId = auth.currentUser.uid; // Only one shop per user
     
     // --- DIAGNOSTIC STEP: Use fixed placeholder URLs for Firestore ---
     const diagnosticAvatarUrl = `https://placehold.co/150x150.png`;
