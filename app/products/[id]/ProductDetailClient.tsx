@@ -18,6 +18,19 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
+function addToCart(item) {
+  if (typeof window === 'undefined') return;
+  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  // If already in cart, increase quantity
+  const idx = cart.findIndex((x) => x.id === item.id);
+  if (idx !== -1) {
+    cart[idx].quantity += item.quantity;
+  } else {
+    cart.push(item);
+  }
+  localStorage.setItem('cart', JSON.stringify(cart));
+}
+
 export default function ProductDetailClient({ params }: { params: { id:string } }) {
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +40,7 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
   const [editMode, setEditMode] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductDetails | null>(null);
   const router = useRouter();
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     const auth = getAuth();
@@ -318,12 +332,24 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
              <div className="flex items-center gap-4">
                 <p className="text-sm font-medium">Câte bucăți de magie dorești?</p>
                 <div className="flex items-center border rounded-md">
-                    <Button variant="ghost" size="icon" className="h-9 w-9"><Minus className="h-4 w-4"/></Button>
-                    <span className="px-4 text-sm font-medium">1</span>
-                    <Button variant="ghost" size="icon" className="h-9 w-9"><Plus className="h-4 w-4"/></Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(q => Math.max(1, q-1))}><Minus className="h-4 w-4"/></Button>
+                    <span className="px-4 text-sm font-medium">{quantity}</span>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(q => q+1)}><Plus className="h-4 w-4"/></Button>
                 </div>
             </div>
-            <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock === 0 || product.status !== 'approved'}>
+            <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock === 0 || product.status !== 'approved'} onClick={() => {
+  addToCart({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    imageUrl: product.images?.[0]?.url || '',
+    quantity,
+    seller: seller?.name || '',
+    productId: product.id,
+    dataAiHint: product.dataAiHint,
+  });
+  toast.success('Adăugat în coș!');
+}}>
               <ShoppingCart className="mr-2 h-5 w-5" /> Adaugă în coșulețul fermecat
             </Button>
             <div className="flex gap-2">

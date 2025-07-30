@@ -7,13 +7,37 @@ import { Separator } from '@/components/ui/separator';
 import { Minus, Plus, Trash2, ShoppingCart, WandSparkles } from 'lucide-react'; // Removed X
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-
-const cartItems: any[] = []; 
+import { useState, useEffect } from 'react';
 
 export default function CartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const items = JSON.parse(localStorage.getItem('cart') || '[]');
+      setCartItems(items);
+    }
+  }, []);
+
+  const updateCart = (items) => {
+    setCartItems(items);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cart', JSON.stringify(items));
+    }
+  };
+
+  const handleQuantity = (id, delta) => {
+    const items = cartItems.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item);
+    updateCart(items);
+  };
+
+  const handleRemove = (id) => {
+    const items = cartItems.filter(item => item.id !== id);
+    updateCart(items);
+  };
+
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingEstimate = cartItems.length > 0 ? 15.00 : 0; 
   const taxEstimate = subtotal * 0.08; 
@@ -79,13 +103,13 @@ export default function CartPage() {
                   <div className="flex items-center mt-3">
                     <p className="text-sm font-medium mr-2">Câte bucăți de magie?</p>
                     <div className="flex items-center border rounded-md h-9">
-                        <Button variant="ghost" size="icon" className="h-full w-9 text-muted-foreground hover:text-foreground"><Minus className="h-4 w-4"/></Button>
+                        <Button variant="ghost" size="icon" className="h-full w-9 text-muted-foreground hover:text-foreground" onClick={() => handleQuantity(item.id, -1)}><Minus className="h-4 w-4"/></Button>
                         <span className="px-3 text-sm">{item.quantity}</span>
-                        <Button variant="ghost" size="icon" className="h-full w-9 text-muted-foreground hover:text-foreground"><Plus className="h-4 w-4"/></Button>
+                        <Button variant="ghost" size="icon" className="h-full w-9 text-muted-foreground hover:text-foreground" onClick={() => handleQuantity(item.id, 1)}><Plus className="h-4 w-4"/></Button>
                     </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleRemove(item.id)}>
                   <Trash2 className="h-5 w-5" />
                   <span className="sr-only">Zboară, minunăție!</span>
                 </Button>
