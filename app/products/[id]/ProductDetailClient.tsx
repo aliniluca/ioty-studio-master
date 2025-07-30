@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Image from 'next/image';
 import { StarRating } from '@/components/shared/StarRating';
@@ -31,6 +31,19 @@ function addToCart(item) {
   localStorage.setItem('cart', JSON.stringify(cart));
 }
 
+function addToCartFirestore(userId, item) {
+  return setDoc(doc(db, 'users', userId, 'cart', item.id), item, { merge: true });
+}
+function removeFromCartFirestore(userId, productId) {
+  return deleteDoc(doc(db, 'users', userId, 'cart', productId));
+}
+function addToWishlistFirestore(userId, productId) {
+  return setDoc(doc(db, 'users', userId, 'wishlist', productId), { addedAt: new Date() });
+}
+function removeFromWishlistFirestore(userId, productId) {
+  return deleteDoc(doc(db, 'users', userId, 'wishlist', productId));
+}
+
 export default function ProductDetailClient({ params }: { params: { id:string } }) {
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +54,7 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
   const [editProduct, setEditProduct] = useState<ProductDetails | null>(null);
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     const auth = getAuth();
@@ -117,6 +131,14 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
     fetchProduct();
   }, [params.id]);
 
+  useEffect(() => {
+    if (currentUserId && product) {
+      getDoc(doc(db, 'users', currentUserId, 'wishlist', product.id)).then(docSnap => {
+        setIsFavorite(docSnap.exists());
+      });
+    }
+  }, [currentUserId, product]);
+
   const handleReapply = async () => {
     if (!product) return;
     setReapplying(true);
@@ -164,6 +186,52 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
     if (!editProduct) return;
     const { name, value } = e.target;
     setEditProduct({ ...editProduct, [name]: value });
+  };
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    const item = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.images?.[0]?.url || '',
+      quantity,
+      seller: seller?.name || '',
+      productId: product.id,
+      dataAiHint: product.dataAiHint,
+    };
+    if (currentUserId) {
+      try {
+        await addToCartFirestore(currentUserId, item);
+        toast.success('Adăugat în coș!');
+      } catch (e) {
+        toast.error('Eroare la adăugare în coș!');
+      }
+    } else {
+      addToCart(item); // fallback to localStorage
+      toast.success('Adăugat în coș!');
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!product) return;
+    if (!currentUserId) {
+      toast.error('Trebuie să fii autentificat pentru a salva la favorite!');
+      return;
+    }
+    try {
+      if (isFavorite) {
+        await removeFromWishlistFirestore(currentUserId, product.id);
+        setIsFavorite(false);
+        toast.success('Eliminat din favorite!');
+      } else {
+        await addToWishlistFirestore(currentUserId, product.id);
+        setIsFavorite(true);
+        toast.success('Adăugat la favorite!');
+      }
+    } catch (e) {
+      toast.error('Eroare la favorite!');
+    }
   };
 
   if (loading) {
@@ -337,24 +405,13 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
                     <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(q => q+1)}><Plus className="h-4 w-4"/></Button>
                 </div>
             </div>
-            <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock === 0 || product.status !== 'approved'} onClick={() => {
-  addToCart({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    imageUrl: product.images?.[0]?.url || '',
-    quantity,
-    seller: seller?.name || '',
-    productId: product.id,
-    dataAiHint: product.dataAiHint,
-  });
-  toast.success('Adăugat în coș!');
-}}>
+            <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock === 0 || product.status !== 'approved'} onClick={handleAddToCart}>
               <ShoppingCart className="mr-2 h-5 w-5" /> Adaugă în coșulețul fermecat
             </Button>
             <div className="flex gap-2">
-                <Button variant="outline" className="w-full">
-                <Heart className="mr-2 h-5 w-5" /> Pune la păstrare în inimă
+                <Button variant={isFavorite ? "default" : "outline"} size="icon" onClick={handleToggleFavorite} disabled={!currentUserId}>
+                  <Heart className={isFavorite ? 'text-destructive' : ''} />
+                  <span className="sr-only">{isFavorite ? 'Elimină din favorite' : 'Pune la inimă'}</span>
                 </Button>
                 <Button variant="outline" size="icon">
                     <Share2 className="h-5 w-5" />

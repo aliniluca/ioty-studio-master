@@ -8,23 +8,58 @@ import { Minus, Plus, Trash2, ShoppingCart, WandSparkles } from 'lucide-react'; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
 
 export default function CartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const items = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartItems(items);
-    }
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUserId(user.uid);
+        // Load cart from Firestore
+        const cartCol = collection(db, 'users', user.uid, 'cart');
+        const cartSnap = await getDocs(cartCol);
+        const items = cartSnap.docs.map(doc => doc.data());
+        setCartItems(items);
+      } else {
+        setCurrentUserId(null);
+        // Load cart from localStorage
+        if (typeof window !== 'undefined') {
+          const items = JSON.parse(localStorage.getItem('cart') || '[]');
+          setCartItems(items);
+        }
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  const updateCart = (items) => {
+  const updateCart = async (items) => {
     setCartItems(items);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('cart', JSON.stringify(items));
+    if (currentUserId) {
+      // Update Firestore
+      for (const item of items) {
+        await setDoc(doc(db, 'users', currentUserId, 'cart', item.id), item, { merge: true });
+      }
+      // Remove deleted items
+      const cartCol = collection(db, 'users', currentUserId, 'cart');
+      const cartSnap = await getDocs(cartCol);
+      for (const docSnap of cartSnap.docs) {
+        if (!items.find(i => i.id === docSnap.id)) {
+          await deleteDoc(doc(db, 'users', currentUserId, 'cart', docSnap.id));
+        }
+      }
+    } else {
+      // Update localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cart', JSON.stringify(items));
+      }
     }
   };
 
