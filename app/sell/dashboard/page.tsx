@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 
 export default function SellerDashboardPage() {
@@ -17,13 +17,34 @@ export default function SellerDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Replace this with your real auth logic (e.g., Firebase, NextAuth, etc.)
-    // Simulate async user fetch
-    setTimeout(() => {
-      // Example user object; replace with real user data
-      setUser({ hasShop: false, shopId: null });
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Fetch shop info from Firestore
+        const shopDocRef = doc(db, 'shops', user.uid);
+        const shopDocSnap = await getDoc(shopDocRef);
+        if (shopDocSnap.exists()) {
+          const shopData = shopDocSnap.data();
+          setUser({
+            hasShop: true,
+            shopId: shopData.id,
+            displayName: user.displayName,
+            email: user.email,
+            // add more fields if needed
+          });
+        } else {
+          setUser({
+            hasShop: false,
+            shopId: null,
+            displayName: user.displayName,
+            email: user.email,
+          });
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
-    }, 500);
+    });
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
