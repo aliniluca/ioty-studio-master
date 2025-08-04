@@ -135,11 +135,6 @@ export function productDetailsToListing(product: ProductDetails): Listing {
   };
 }
 
-export function EditShopForm({}: EditShopFormProps) {
-  console.log('Componenta EditShopForm s-a montat!');
-  // ... restul codului
-}
-
 export interface Notification {
   id: string;
   type: 'order' | 'listing' | 'message' | 'system';
@@ -151,5 +146,16 @@ export interface Notification {
   listingId?: string;
   senderId?: string;
   extra?: Record<string, any>;
+}
+
+export interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  quantity: number;
+  seller: string;
+  productId: string;
+  dataAiHint?: string;
 }
 

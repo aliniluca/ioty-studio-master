@@ -25,6 +25,7 @@ import { navigationCategories, type NavCategory } from '@/lib/nav-data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useCart } from '@/hooks/use-cart';
 
 
 export function Header() {
@@ -33,6 +34,7 @@ export function Header() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { cartCount } = useCart();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -216,9 +218,14 @@ export function Header() {
               </Link>
             </Button>
 
-            <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Button variant="ghost" size="icon" asChild className="rounded-full relative">
               <Link href="/cart">
                 <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
                 <span className="sr-only">Coșulețul cu dorințe</span>
               </Link>
             </Button>

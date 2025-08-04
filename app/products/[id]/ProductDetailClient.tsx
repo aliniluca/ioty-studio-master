@@ -12,17 +12,17 @@ import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
 import { ProductImageCarousel } from '@/components/product/ProductImageCarousel';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Review as ReviewType, ProductDetails, ShopDetails } from '@/lib/mock-data-types'; 
+import type { Review as ReviewType, ProductDetails, ShopDetails, CartItem } from '@/lib/mock-data-types'; 
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-function addToCart(item) {
+function addToCart(item: CartItem) {
   if (typeof window === 'undefined') return;
   const cart = JSON.parse(localStorage.getItem('cart') || '[]');
   // If already in cart, increase quantity
-  const idx = cart.findIndex((x) => x.id === item.id);
+  const idx = cart.findIndex((x: CartItem) => x.id === item.id);
   if (idx !== -1) {
     cart[idx].quantity += item.quantity;
   } else {
@@ -31,16 +31,16 @@ function addToCart(item) {
   localStorage.setItem('cart', JSON.stringify(cart));
 }
 
-function addToCartFirestore(userId, item) {
+function addToCartFirestore(userId: string, item: CartItem) {
   return setDoc(doc(db, 'users', userId, 'cart', item.id), item, { merge: true });
 }
-function removeFromCartFirestore(userId, productId) {
+function removeFromCartFirestore(userId: string, productId: string) {
   return deleteDoc(doc(db, 'users', userId, 'cart', productId));
 }
-function addToWishlistFirestore(userId, productId) {
+function addToWishlistFirestore(userId: string, productId: string) {
   return setDoc(doc(db, 'users', userId, 'wishlist', productId), { addedAt: new Date() });
 }
-function removeFromWishlistFirestore(userId, productId) {
+function removeFromWishlistFirestore(userId: string, productId: string) {
   return deleteDoc(doc(db, 'users', userId, 'wishlist', productId));
 }
 
@@ -190,7 +190,7 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
 
   const handleAddToCart = async () => {
     if (!product) return;
-    const item = {
+    const item: CartItem = {
       id: product.id,
       name: product.name,
       price: product.price,

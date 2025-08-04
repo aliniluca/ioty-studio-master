@@ -11,12 +11,13 @@ import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import type { CartItem } from '@/lib/mock-data-types';
 
 export default function CartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [cartItems, setCartItems] = useState([]);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = getAuth();
@@ -26,13 +27,13 @@ export default function CartPage() {
         // Load cart from Firestore
         const cartCol = collection(db, 'users', user.uid, 'cart');
         const cartSnap = await getDocs(cartCol);
-        const items = cartSnap.docs.map(doc => doc.data());
+        const items = cartSnap.docs.map(doc => doc.data() as CartItem);
         setCartItems(items);
       } else {
         setCurrentUserId(null);
         // Load cart from localStorage
         if (typeof window !== 'undefined') {
-          const items = JSON.parse(localStorage.getItem('cart') || '[]');
+          const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
           setCartItems(items);
         }
       }
@@ -40,37 +41,55 @@ export default function CartPage() {
     return () => unsubscribe();
   }, []);
 
-  const updateCart = async (items) => {
-    setCartItems(items);
+  const updateCartItem = async (updatedItem: CartItem) => {
     if (currentUserId) {
-      // Update Firestore
-      for (const item of items) {
-        await setDoc(doc(db, 'users', currentUserId, 'cart', item.id), item, { merge: true });
-      }
-      // Remove deleted items
-      const cartCol = collection(db, 'users', currentUserId, 'cart');
-      const cartSnap = await getDocs(cartCol);
-      for (const docSnap of cartSnap.docs) {
-        if (!items.find(i => i.id === docSnap.id)) {
-          await deleteDoc(doc(db, 'users', currentUserId, 'cart', docSnap.id));
-        }
-      }
+      // Update single item in Firestore
+      await setDoc(doc(db, 'users', currentUserId, 'cart', updatedItem.id), updatedItem, { merge: true });
     } else {
       // Update localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('cart', JSON.stringify(items));
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
+        const idx = cart.findIndex(item => item.id === updatedItem.id);
+        if (idx !== -1) {
+          cart[idx] = updatedItem;
+        } else {
+          cart.push(updatedItem);
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
       }
     }
   };
 
-  const handleQuantity = (id, delta) => {
-    const items = cartItems.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item);
-    updateCart(items);
+  const removeCartItem = async (itemId: string) => {
+    if (currentUserId) {
+      // Remove from Firestore
+      await deleteDoc(doc(db, 'users', currentUserId, 'cart', itemId));
+    } else {
+      // Remove from localStorage
+      if (typeof window !== 'undefined') {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
+        const updatedCart = cart.filter(item => item.id !== itemId);
+        localStorage.setItem('cart', JSON.stringify(updatedCart));
+      }
+    }
   };
 
-  const handleRemove = (id) => {
-    const items = cartItems.filter(item => item.id !== id);
-    updateCart(items);
+  const handleQuantity = async (id: string, delta: number) => {
+    const updatedItems = cartItems.map(item => 
+      item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
+    );
+    setCartItems(updatedItems);
+    
+    const updatedItem = updatedItems.find(item => item.id === id);
+    if (updatedItem) {
+      await updateCartItem(updatedItem);
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    const updatedItems = cartItems.filter(item => item.id !== id);
+    setCartItems(updatedItems);
+    await removeCartItem(id);
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);

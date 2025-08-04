@@ -6,13 +6,31 @@ import { Button } from '@/components/ui/button';
 import { StarRating } from './StarRating';
 import { Heart, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { Listing } from '@/lib/mock-data-types';
+import type { Listing, CartItem } from '@/lib/mock-data-types';
 import { Badge } from '../ui/badge';
 import { useEffect, useState } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Heart as HeartIcon, HeartOff } from 'lucide-react';
+
+// Add cart functions
+function addToCartLocalStorage(item: CartItem) {
+  if (typeof window === 'undefined') return;
+  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  // If already in cart, increase quantity
+  const idx = cart.findIndex((x: CartItem) => x.id === item.id);
+  if (idx !== -1) {
+    cart[idx].quantity += item.quantity;
+  } else {
+    cart.push(item);
+  }
+  localStorage.setItem('cart', JSON.stringify(cart));
+}
+
+function addToCartFirestore(userId: string, item: CartItem) {
+  return setDoc(doc(db, 'users', userId, 'cart', item.id), item, { merge: true });
+}
 
 interface ListingCardProps {
   listing: Listing;
@@ -39,7 +57,7 @@ export function ListingCard({ listing }: ListingCardProps) {
     return () => unsubscribe();
   }, [listing.id]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (listing.status !== 'approved') {
       toast({
         variant: "destructive",
@@ -48,10 +66,39 @@ export function ListingCard({ listing }: ListingCardProps) {
       });
       return;
     }
-    toast({
-      title: "În coșuleț a sărit!",
-      description: `Minunăția \"${listing.name}\" e acum în coșulețul tău fermecat. (Simulare)`,
-    });
+
+    const item = {
+      id: listing.id,
+      name: listing.name,
+      price: listing.price,
+      imageUrl: listing.imageUrl,
+      quantity: 1,
+      seller: listing.seller.name,
+      productId: listing.id,
+      dataAiHint: listing.dataAiHint,
+    };
+
+    if (userId) {
+      try {
+        await addToCartFirestore(userId, item);
+        toast({
+          title: "În coșuleț a sărit!",
+          description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
+        });
+      } catch (e) {
+        toast({
+          variant: "destructive",
+          title: "Eroare la adăugare în coș!",
+          description: "Nu am putut adăuga minunăția în coșuleț. Încearcă din nou!",
+        });
+      }
+    } else {
+      addToCartLocalStorage(item);
+      toast({
+        title: "În coșuleț a sărit!",
+        description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
+      });
+    }
   };
 
   const handleToggleFavorite = async () => {
