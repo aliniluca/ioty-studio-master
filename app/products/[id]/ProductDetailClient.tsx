@@ -32,7 +32,31 @@ function addToCart(item: CartItem) {
 }
 
 function addToCartFirestore(userId: string, item: CartItem) {
-  return setDoc(doc(db, 'users', userId, 'cart', item.id), item, { merge: true });
+  console.log('addToCartFirestore called with:', { userId, item });
+  
+  if (!userId || !item || !item.id) {
+    throw new Error('Invalid parameters for addToCartFirestore');
+  }
+  
+  try {
+    // Use a single cart document instead of subcollections
+    const cartRef = doc(db, 'carts', userId);
+    console.log('Cart reference created:', cartRef.path);
+    
+    // Get current cart and update it
+    return getDoc(cartRef).then((docSnap) => {
+      const currentCart = docSnap.exists() ? docSnap.data() : {};
+      const updatedCart = {
+        ...currentCart,
+        [item.id]: item,
+        lastUpdated: new Date()
+      };
+      return setDoc(cartRef, updatedCart);
+    });
+  } catch (error) {
+    console.error('Error in addToCartFirestore:', error);
+    throw error;
+  }
 }
 function removeFromCartFirestore(userId: string, productId: string) {
   return deleteDoc(doc(db, 'users', userId, 'cart', productId));
@@ -189,25 +213,45 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
   };
 
   const handleAddToCart = async () => {
-    if (!product) return;
+    if (!product) {
+      console.error('No product data available');
+      toast.error('Nu s-a putut adăuga în coș - produs indisponibil');
+      return;
+    }
+
+    // Validate required fields
+    if (!product.id || !product.name || product.price === undefined) {
+      console.error('Invalid product data:', product);
+      toast.error('Datele produsului sunt incomplete');
+      return;
+    }
+
     const item: CartItem = {
       id: product.id,
       name: product.name,
       price: product.price,
       imageUrl: product.images?.[0]?.url || '',
       quantity,
-      seller: seller?.name || '',
+      seller: seller?.name || 'Unknown Seller',
       productId: product.id,
       dataAiHint: product.dataAiHint,
     };
+
+    console.log('Adding item to cart:', item);
+    console.log('Current user ID:', currentUserId);
+
     if (currentUserId) {
       try {
+        console.log('Adding to Firestore for user:', currentUserId);
         await addToCartFirestore(currentUserId, item);
+        console.log('Successfully added to Firestore');
         toast.success('Adăugat în coș!');
       } catch (e) {
-        toast.error('Eroare la adăugare în coș!');
+        console.error('Error adding to Firestore:', e);
+        toast.error(`Eroare la adăugare în coș: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
     } else {
+      console.log('Adding to localStorage (no user)');
       addToCart(item); // fallback to localStorage
       toast.success('Adăugat în coș!');
     }

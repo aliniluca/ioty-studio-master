@@ -29,7 +29,31 @@ function addToCartLocalStorage(item: CartItem) {
 }
 
 function addToCartFirestore(userId: string, item: CartItem) {
-  return setDoc(doc(db, 'users', userId, 'cart', item.id), item, { merge: true });
+  console.log('addToCartFirestore called with:', { userId, item });
+  
+  if (!userId || !item || !item.id) {
+    throw new Error('Invalid parameters for addToCartFirestore');
+  }
+  
+  try {
+    // Use a single cart document instead of subcollections
+    const cartRef = doc(db, 'carts', userId);
+    console.log('Cart reference created:', cartRef.path);
+    
+    // Get current cart and update it
+    return getDoc(cartRef).then((docSnap) => {
+      const currentCart = docSnap.exists() ? docSnap.data() : {};
+      const updatedCart = {
+        ...currentCart,
+        [item.id]: item,
+        lastUpdated: new Date()
+      };
+      return setDoc(cartRef, updatedCart);
+    });
+  } catch (error) {
+    console.error('Error in addToCartFirestore:', error);
+    throw error;
+  }
 }
 
 interface ListingCardProps {

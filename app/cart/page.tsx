@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, setDoc, doc, deleteDoc, getDoc } from 'firebase/firestore';
 import type { CartItem } from '@/lib/mock-data-types';
 
 export default function CartPage() {
@@ -24,11 +24,24 @@ export default function CartPage() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUserId(user.uid);
-        // Load cart from Firestore
-        const cartCol = collection(db, 'users', user.uid, 'cart');
-        const cartSnap = await getDocs(cartCol);
-        const items = cartSnap.docs.map(doc => doc.data() as CartItem);
-        setCartItems(items);
+        // Load cart from Firestore (new structure)
+        try {
+          const cartRef = doc(db, 'carts', user.uid);
+          const cartSnap = await getDoc(cartRef);
+          if (cartSnap.exists()) {
+            const cartData = cartSnap.data();
+            // Extract cart items from the document
+            const items = Object.values(cartData).filter(item => 
+              typeof item === 'object' && item !== null && 'id' in item
+            ) as CartItem[];
+            setCartItems(items);
+          } else {
+            setCartItems([]);
+          }
+        } catch (error) {
+          console.error('Error loading cart:', error);
+          setCartItems([]);
+        }
       } else {
         setCurrentUserId(null);
         // Load cart from localStorage
@@ -43,8 +56,20 @@ export default function CartPage() {
 
   const updateCartItem = async (updatedItem: CartItem) => {
     if (currentUserId) {
-      // Update single item in Firestore
-      await setDoc(doc(db, 'users', currentUserId, 'cart', updatedItem.id), updatedItem, { merge: true });
+      // Update single item in Firestore (new structure)
+      try {
+        const cartRef = doc(db, 'carts', currentUserId);
+        const cartSnap = await getDoc(cartRef);
+        const currentCart = cartSnap.exists() ? cartSnap.data() : {};
+        const updatedCart = {
+          ...currentCart,
+          [updatedItem.id]: updatedItem,
+          lastUpdated: new Date()
+        };
+        await setDoc(cartRef, updatedCart);
+      } catch (error) {
+        console.error('Error updating cart item:', error);
+      }
     } else {
       // Update localStorage
       if (typeof window !== 'undefined') {
@@ -62,8 +87,21 @@ export default function CartPage() {
 
   const removeCartItem = async (itemId: string) => {
     if (currentUserId) {
-      // Remove from Firestore
-      await deleteDoc(doc(db, 'users', currentUserId, 'cart', itemId));
+      // Remove from Firestore (new structure)
+      try {
+        const cartRef = doc(db, 'carts', currentUserId);
+        const cartSnap = await getDoc(cartRef);
+        if (cartSnap.exists()) {
+          const currentCart = cartSnap.data();
+          const { [itemId]: removed, ...updatedCart } = currentCart;
+          await setDoc(cartRef, {
+            ...updatedCart,
+            lastUpdated: new Date()
+          });
+        }
+      } catch (error) {
+        console.error('Error removing cart item:', error);
+      }
     } else {
       // Remove from localStorage
       if (typeof window !== 'undefined') {

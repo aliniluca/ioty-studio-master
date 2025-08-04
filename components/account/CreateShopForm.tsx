@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { WandSparkles, UploadCloud, Trash2 } from 'lucide-react';
 import { auth, db } from '@/lib/firebase'; 
 import { v4 as uuidv4 } from 'uuid';
-import { setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc } from 'firebcart fixase/firestore';
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
