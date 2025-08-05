@@ -37,18 +37,47 @@ function addToCartFirestore(userId: string, item: CartItem) {
   
   try {
     // Use a single cart document instead of subcollections
-    const cartRef = doc(db, 'carts', userId);
+    const cartRef = doc(db, 'cart', userId);
     console.log('Cart reference created:', cartRef.path);
     
     // Get current cart and update it
     return getDoc(cartRef).then((docSnap) => {
+      console.log('Current cart exists:', docSnap.exists());
       const currentCart = docSnap.exists() ? docSnap.data() : {};
+      console.log('Current cart data:', currentCart);
+      
+      // Filter out undefined values from the item before saving
+      const cleanItem = Object.fromEntries(
+        Object.entries(item).filter(([_, value]) => value !== undefined)
+      );
+      
       const updatedCart = {
         ...currentCart,
-        [item.id]: item,
+        [item.id]: cleanItem,
         lastUpdated: new Date()
       };
-      return setDoc(cartRef, updatedCart);
+      console.log('Updated cart data:', updatedCart);
+      
+      return setDoc(cartRef, updatedCart).then(() => {
+        console.log('Cart successfully updated in Firestore');
+        return true;
+      }).catch((error) => {
+        console.error('Error in setDoc:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          stack: error.stack
+        });
+        throw error;
+      });
+    }).catch((error) => {
+      console.error('Error in getDoc:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
     });
   } catch (error) {
     console.error('Error in addToCartFirestore:', error);
@@ -104,16 +133,25 @@ export function ListingCard({ listing }: ListingCardProps) {
 
     if (userId) {
       try {
+        console.log('Attempting to add to cart for user:', userId);
         await addToCartFirestore(userId, item);
+        console.log('Successfully added to cart');
         toast({
           title: "În coșuleț a sărit!",
           description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
         });
       } catch (e) {
+        console.error('Error in handleAddToCart:', e);
+        const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+        console.error('Error details:', {
+          code: e instanceof Error && 'code' in e ? e.code : 'unknown',
+          message: errorMessage,
+          stack: e instanceof Error ? e.stack : 'No stack trace'
+        });
         toast({
           variant: "destructive",
           title: "Eroare la adăugare în coș!",
-          description: "Nu am putut adăuga minunăția în coșuleț. Încearcă din nou!",
+          description: `Nu am putut adăuga minunăția în coșuleț: ${errorMessage}`,
         });
       }
     } else {

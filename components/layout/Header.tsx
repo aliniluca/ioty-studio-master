@@ -23,7 +23,7 @@ import type { FormEvent } from 'react';
 import { useState, useEffect } from 'react';
 import { navigationCategories, type NavCategory } from '@/lib/nav-data';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useCart } from '@/hooks/use-cart';
 
@@ -32,22 +32,29 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname(); // Get current pathname
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const { cartCount } = useCart();
+  const { cartCount, cartItems, loading } = useCart();
+
+  console.log('Header - Cart count:', cartCount, 'Cart items:', cartItems, 'Loading:', loading);
 
   useEffect(() => {
+    console.log('Header: Setting up auth listener');
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Header: Auth state changed, user:', user ? user.uid : 'null');
       if (user) {
-        setCurrentUser(user as UserAccount);
+        setCurrentUser(user);
         setIsAuthenticated(true);
+        console.log('Header: User authenticated:', user.uid);
       } else {
         setCurrentUser(null);
         setIsAuthenticated(false);
+        console.log('Header: No user authenticated');
       }
     });
 
     return () => {
+      console.log('Header: Cleaning up auth listener');
       unsubscribe();
     };
   }, [pathname]); // Added pathname to dependency array
@@ -61,12 +68,16 @@ export function Header() {
     }
   };
 
-  const handleLogout = () => {
-    simulateUserLogout();
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    router.push('/');
-    router.refresh();
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      router.push('/');
+      router.refresh();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const renderCategoryDropdownItem = (category: NavCategory) => {

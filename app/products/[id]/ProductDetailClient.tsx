@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { use } from "react";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Image from 'next/image';
@@ -40,18 +41,37 @@ function addToCartFirestore(userId: string, item: CartItem) {
   
   try {
     // Use a single cart document instead of subcollections
-    const cartRef = doc(db, 'carts', userId);
+    const cartRef = doc(db, 'cart', userId);
     console.log('Cart reference created:', cartRef.path);
     
     // Get current cart and update it
     return getDoc(cartRef).then((docSnap) => {
+      console.log('Current cart exists:', docSnap.exists());
       const currentCart = docSnap.exists() ? docSnap.data() : {};
+      console.log('Current cart data:', currentCart);
+      
+      // Filter out undefined values from the item before saving
+      const cleanItem = Object.fromEntries(
+        Object.entries(item).filter(([_, value]) => value !== undefined)
+      );
+      
       const updatedCart = {
         ...currentCart,
-        [item.id]: item,
+        [item.id]: cleanItem,
         lastUpdated: new Date()
       };
-      return setDoc(cartRef, updatedCart);
+      console.log('Updated cart data:', updatedCart);
+      
+      return setDoc(cartRef, updatedCart).then(() => {
+        console.log('Cart successfully updated in Firestore');
+        return true;
+      }).catch((error) => {
+        console.error('Error in setDoc:', error);
+        throw error;
+      });
+    }).catch((error) => {
+      console.error('Error in getDoc:', error);
+      throw error;
     });
   } catch (error) {
     console.error('Error in addToCartFirestore:', error);
@@ -68,7 +88,12 @@ function removeFromWishlistFirestore(userId: string, productId: string) {
   return deleteDoc(doc(db, 'users', userId, 'wishlist', productId));
 }
 
-export default function ProductDetailClient({ params }: { params: { id:string } }) {
+interface ProductDetailClientProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function ProductDetailClient({ params }: ProductDetailClientProps) {
+  const resolvedParams = use(params);
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [seller, setSeller] = useState<ShopDetails | null>(null);
@@ -91,8 +116,8 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
   useEffect(() => {
     async function fetchProduct() {
       try {
-        if (typeof params.id !== 'string') {
-          console.error('params.id is not a string:', params.id, typeof params.id);
+        if (typeof resolvedParams.id !== 'string') {
+          console.error('resolvedParams.id is not a string:', resolvedParams.id, typeof resolvedParams.id);
           setProduct({
             id: '',
             name: '',
@@ -116,8 +141,8 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
           setLoading(false);
           return;
         }
-        console.log("Fetching product:", params.id);
-        const docRef = doc(db, "listings", params.id);
+        console.log("Fetching product:", resolvedParams.id);
+        const docRef = doc(db, "listings", resolvedParams.id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           console.log("Product data:", docSnap.data());
@@ -141,19 +166,19 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
             }
           }
         } else {
-          console.log("No such product!");
+          console.log("Product not found");
           setProduct(null);
-          setSeller(null);
         }
       } catch (error) {
         console.error("Error fetching product:", error);
         setProduct(null);
-        setSeller(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
+
     fetchProduct();
-  }, [params.id]);
+  }, [resolvedParams.id]);
 
   useEffect(() => {
     if (currentUserId && product) {
@@ -167,7 +192,7 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
     if (!product) return;
     setReapplying(true);
     try {
-      const docRef = doc(db, "listings", params.id);
+      const docRef = doc(db, "listings", resolvedParams.id);
       await docRef.update({ status: 'pending_approval' });
       toast.success('Listing resubmitted for moderation!');
       // Optionally, refetch product
@@ -195,7 +220,7 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
   const handleSaveEdit = async () => {
     if (!editProduct) return;
     try {
-      const docRef = doc(db, "listings", params.id);
+      const docRef = doc(db, "listings", resolvedParams.id);
       await docRef.update(editProduct);
       setProduct(editProduct);
       setEditMode(false);
@@ -243,8 +268,28 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
     if (currentUserId) {
       try {
         console.log('Adding to Firestore for user:', currentUserId);
+        
+        // Test: Try to write a simple test document first
+        const testRef = doc(db, 'cart', currentUserId);
+        await setDoc(testRef, { test: true, timestamp: new Date() });
+        console.log('Test write successful');
+        
         await addToCartFirestore(currentUserId, item);
         console.log('Successfully added to Firestore');
+        
+        // Test: Read back the cart to verify it was saved
+        const testCartRef = doc(db, 'cart', currentUserId);
+        const testCartSnap = await getDoc(testCartRef);
+        console.log('Test read - Cart exists:', testCartSnap.exists());
+        if (testCartSnap.exists()) {
+          const testCartData = testCartSnap.data();
+          console.log('Test read - Cart data:', testCartData);
+          const testItems = Object.values(testCartData).filter(item => 
+            typeof item === 'object' && item !== null && 'id' in item
+          ) as CartItem[];
+          console.log('Test read - Extracted items:', testItems);
+        }
+        
         toast.success('Adăugat în coș!');
       } catch (e) {
         console.error('Error adding to Firestore:', e);
@@ -282,7 +327,7 @@ export default function ProductDetailClient({ params }: { params: { id:string } 
     return <div className="text-center py-10 text-muted-foreground">Se încarcă...</div>;
   }
 
-  if (typeof params.id !== 'string') {
+  if (typeof resolvedParams.id !== 'string') {
     return (
       <PlaceholderContent
         title="Eroare: ID produs lipsă"

@@ -26,7 +26,7 @@ export default function CartPage() {
         setCurrentUserId(user.uid);
         // Load cart from Firestore (new structure)
         try {
-          const cartRef = doc(db, 'carts', user.uid);
+          const cartRef = doc(db, 'cart', user.uid);
           const cartSnap = await getDoc(cartRef);
           if (cartSnap.exists()) {
             const cartData = cartSnap.data();
@@ -58,7 +58,7 @@ export default function CartPage() {
     if (currentUserId) {
       // Update single item in Firestore (new structure)
       try {
-        const cartRef = doc(db, 'carts', currentUserId);
+        const cartRef = doc(db, 'cart', currentUserId);
         const cartSnap = await getDoc(cartRef);
         const currentCart = cartSnap.exists() ? cartSnap.data() : {};
         const updatedCart = {
@@ -89,7 +89,7 @@ export default function CartPage() {
     if (currentUserId) {
       // Remove from Firestore (new structure)
       try {
-        const cartRef = doc(db, 'carts', currentUserId);
+        const cartRef = doc(db, 'cart', currentUserId);
         const cartSnap = await getDoc(cartRef);
         if (cartSnap.exists()) {
           const currentCart = cartSnap.data();

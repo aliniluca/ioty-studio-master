@@ -1,21 +1,29 @@
+import { Suspense } from 'react';
+import { use } from 'react';
 import ProductDetailClient from './ProductDetailClient';
-import { AlertTriangle } from 'lucide-react';
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
+import { PackageSearch } from 'lucide-react';
 
-export async function generateStaticParams() {
-  // In a real app, this would fetch all product IDs. For mock, it's empty.
-  return [];
+interface PageProps {
+  params: Promise<{ id: string }>;
 }
 
-export default function ProductDetailPage({ params }: { params: { id?: string } }) {
-  if (typeof params.id !== 'string') {
+export default function ProductPage({ params }: PageProps) {
+  const resolvedParams = use(params);
+  
+  if (typeof resolvedParams.id !== 'string') {
     return (
       <PlaceholderContent
         title="Eroare: ID produs lipsă"
         description="Nu a fost furnizat un ID valid pentru produs. Încercați să accesați această pagină din lista de produse."
-        icon={AlertTriangle}
+        icon={PackageSearch}
       />
     );
   }
-  return <ProductDetailClient params={{ id: params.id }} />;
+
+  return (
+    <Suspense fallback={<div className="text-center py-10 text-muted-foreground">Se încarcă...</div>}>
+      <ProductDetailClient params={{ id: resolvedParams.id }} />
+    </Suspense>
+  );
 }

@@ -1,3 +1,4 @@
+import { use } from 'react';
 import { ListingCard } from '@/components/shared/ListingCard';
 import { Button } from '@/components/ui/button';
 import { Filter, ArrowUpDown, Search, WandSparkles } from 'lucide-react'; 
@@ -63,11 +64,18 @@ function getCategoryDisplayName(categoryId: string): string {
   return `Tărâmul ${capitalizedId}`;
 }
 
+interface PageProps {
+  params: Promise<{ categoryId: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}
 
-export default async function CategoryPage({ params, searchParams }: { params: { categoryId: string }, searchParams?: { [key: string]: string | string[] | undefined } }) {
-  const { categoryId } = params;
-  const searchQuery = searchParams?.q as string | undefined;
-  const subcategorySlug = searchParams?.subcategory as string | undefined;
+export default async function CategoryPage({ params, searchParams }: PageProps) {
+  const resolvedParams = use(params);
+  const resolvedSearchParams = searchParams ? use(searchParams) : {};
+  
+  const { categoryId } = resolvedParams;
+  const searchQuery = resolvedSearchParams?.q as string | undefined;
+  const subcategorySlug = resolvedSearchParams?.subcategory as string | undefined;
 
   const currentCategory = findCategory(categoryId);
   const currentSubcategory = currentCategory && subcategorySlug ? findSubcategory(currentCategory, subcategorySlug) : undefined;
