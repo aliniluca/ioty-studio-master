@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { use } from "react";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Image from 'next/image';
@@ -89,11 +88,10 @@ function removeFromWishlistFirestore(userId: string, productId: string) {
 }
 
 interface ProductDetailClientProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default function ProductDetailClient({ params }: ProductDetailClientProps) {
-  const resolvedParams = use(params);
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [seller, setSeller] = useState<ShopDetails | null>(null);
@@ -116,8 +114,8 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
   useEffect(() => {
     async function fetchProduct() {
       try {
-        if (typeof resolvedParams.id !== 'string') {
-          console.error('resolvedParams.id is not a string:', resolvedParams.id, typeof resolvedParams.id);
+        if (typeof params.id !== 'string') {
+          console.error('params.id is not a string:', params.id, typeof params.id);
           setProduct({
             id: '',
             name: '',
@@ -141,8 +139,8 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
           setLoading(false);
           return;
         }
-        console.log("Fetching product:", resolvedParams.id);
-        const docRef = doc(db, "listings", resolvedParams.id);
+        console.log("Fetching product:", params.id);
+        const docRef = doc(db, "listings", params.id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           console.log("Product data:", docSnap.data());
@@ -178,7 +176,7 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
     }
 
     fetchProduct();
-  }, [resolvedParams.id]);
+  }, [params.id]);
 
   useEffect(() => {
     if (currentUserId && product) {
@@ -192,8 +190,8 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
     if (!product) return;
     setReapplying(true);
     try {
-      const docRef = doc(db, "listings", resolvedParams.id);
-      await docRef.update({ status: 'pending_approval' });
+      const docRef = doc(db, "listings", params.id);
+      await setDoc(docRef, { status: 'pending_approval' }, { merge: true });
       toast.success('Listing resubmitted for moderation!');
       // Optionally, refetch product
       setProduct({ ...product, status: 'pending_approval' });
@@ -220,8 +218,8 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
   const handleSaveEdit = async () => {
     if (!editProduct) return;
     try {
-      const docRef = doc(db, "listings", resolvedParams.id);
-      await docRef.update(editProduct);
+      const docRef = doc(db, "listings", params.id);
+      await setDoc(docRef, editProduct, { merge: true });
       setProduct(editProduct);
       setEditMode(false);
       toast.success('Modificările au fost salvate!');
@@ -327,7 +325,7 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
     return <div className="text-center py-10 text-muted-foreground">Se încarcă...</div>;
   }
 
-  if (typeof resolvedParams.id !== 'string') {
+  if (typeof params.id !== 'string') {
     return (
       <PlaceholderContent
         title="Eroare: ID produs lipsă"

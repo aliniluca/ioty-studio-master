@@ -1,7 +1,6 @@
 // src/app/shop/[shopId]/page.tsx
 "use client";
 import { useEffect, useState } from 'react';
-import { use } from 'react';
 import { doc, getDoc, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,11 +19,10 @@ import type { ShopDetails, ProductDetails, Listing } from '@/lib/mock-data-types
 import { productDetailsToListing } from '@/lib/mock-data-types';
 
 interface PageProps {
-  params: Promise<{ shopId: string }>;
+  params: { shopId: string };
 }
 
 export default function ShopPage({ params }: PageProps) {
-  const resolvedParams = use(params);
   const [shop, setShop] = useState<ShopDetails | null>(null);
   const [products, setProducts] = useState<ProductDetails[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,13 +35,13 @@ export default function ShopPage({ params }: PageProps) {
         setError(null);
 
         // Handle shop ID parsing
-        let realShopId = resolvedParams.shopId;
-        if (resolvedParams.shopId.startsWith('shop_')) {
-          const parts = resolvedParams.shopId.substring(5).split('_');
+        let realShopId = params.shopId;
+        if (params.shopId.startsWith('shop_')) {
+          const parts = params.shopId.substring(5).split('_');
           realShopId = parts[0];
         }
 
-        console.log('Fetching shop with ID:', resolvedParams.shopId);
+        console.log('Fetching shop with ID:', params.shopId);
 
         // Fetch shop details
         const shopRef = doc(db, 'shops', realShopId);
@@ -82,10 +80,10 @@ export default function ShopPage({ params }: PageProps) {
       }
     }
 
-    if (resolvedParams.shopId) {
+    if (params.shopId) {
       fetchShopData();
     }
-  }, [resolvedParams.shopId]);
+  }, [params.shopId]);
 
   if (loading) {
     return <div className="text-center py-10"><p className="text-muted-foreground">Se caută atelierul prin tărâmul ioty...</p></div>;

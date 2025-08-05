@@ -1,17 +1,14 @@
 import { Suspense } from 'react';
-import { use } from 'react';
 import ProductDetailClient from './ProductDetailClient';
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { PackageSearch } from 'lucide-react';
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default function ProductPage({ params }: PageProps) {
-  const resolvedParams = use(params);
-  
-  if (typeof resolvedParams.id !== 'string') {
+  if (typeof params.id !== 'string') {
     return (
       <PlaceholderContent
         title="Eroare: ID produs lipsă"
@@ -23,7 +20,7 @@ export default function ProductPage({ params }: PageProps) {
 
   return (
     <Suspense fallback={<div className="text-center py-10 text-muted-foreground">Se încarcă...</div>}>
-      <ProductDetailClient params={{ id: resolvedParams.id }} />
+      <ProductDetailClient params={{ id: params.id }} />
     </Suspense>
   );
 }
