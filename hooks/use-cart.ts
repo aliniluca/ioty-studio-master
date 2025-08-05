@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import type { CartItem } from '@/lib/mock-data-types';
+
+// Cache for cart data to reduce Firebase calls
+const cartCache = new Map<string, { data: CartItem[], timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function useCart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -10,9 +14,21 @@ export function useCart() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Memoized cart count calculation
+  const memoizedCartCount = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cartItems]);
+
+  // Debounced function to update cart count
+  const updateCartCount = useCallback((items: CartItem[]) => {
+    const count = items.reduce((sum, item) => sum + item.quantity, 0);
+    setCartCount(count);
+  }, []);
+
   useEffect(() => {
     console.log('useCart: Starting effect');
     const auth = getAuth();
+    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('useCart: Auth state changed, user:', user ? user.uid : 'null');
       
@@ -20,8 +36,17 @@ export function useCart() {
         setCurrentUserId(user.uid);
         console.log('useCart: User authenticated, setting up cart listener for:', user.uid);
         
-                       // Listen to cart changes in Firestore (new structure)
-               const cartRef = doc(db, 'cart', user.uid);
+        // Check cache first
+        const cached = cartCache.get(user.uid);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+          console.log('useCart: Using cached cart data');
+          setCartItems(cached.data);
+          updateCartCount(cached.data);
+          setLoading(false);
+        }
+        
+        // Set up real-time listener
+        const cartRef = doc(db, 'cart', user.uid);
         console.log('useCart: Cart reference created:', cartRef.path);
         
         const unsubscribeCart = onSnapshot(cartRef, (snapshot) => {
@@ -34,18 +59,23 @@ export function useCart() {
               typeof item === 'object' && item !== null && 'id' in item
             ) as CartItem[];
             console.log('useCart: Extracted cart items:', items);
+            
+            // Update cache
+            cartCache.set(user.uid, { data: items, timestamp: Date.now() });
+            
             setCartItems(items);
-            setCartCount(items.reduce((sum, item) => sum + item.quantity, 0));
+            updateCartCount(items);
           } else {
             console.log('useCart: Cart document does not exist');
             setCartItems([]);
-            setCartCount(0);
+            updateCartCount([]);
+            cartCache.delete(user.uid);
           }
           setLoading(false);
         }, (error) => {
           console.error('useCart: Error listening to cart:', error);
           setCartItems([]);
-          setCartCount(0);
+          updateCartCount([]);
           setLoading(false);
         });
         
@@ -61,7 +91,7 @@ export function useCart() {
           const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
           console.log('useCart: Loaded items from localStorage:', items);
           setCartItems(items);
-          setCartCount(items.reduce((sum, item) => sum + item.quantity, 0));
+          updateCartCount(items);
         }
         setLoading(false);
       }
@@ -71,7 +101,12 @@ export function useCart() {
       console.log('useCart: Cleaning up auth listener');
       unsubscribe();
     };
-  }, []);
+  }, [updateCartCount]);
+
+  // Update cart count when cartItems change
+  useEffect(() => {
+    setCartCount(memoizedCartCount);
+  }, [memoizedCartCount]);
 
   console.log('useCart: Current state - userId:', currentUserId, 'loading:', loading, 'items:', cartItems.length, 'count:', cartCount);
 

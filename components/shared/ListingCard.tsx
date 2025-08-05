@@ -1,4 +1,5 @@
 "use client";
+import { memo, useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +9,14 @@ import { Heart, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { Listing, CartItem } from '@/lib/mock-data-types';
 import { Badge } from '../ui/badge';
-import { useEffect, useState } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Heart as HeartIcon, HeartOff } from 'lucide-react';
+
+// Cache for user authentication state
+const authCache = new Map<string, { user: any, timestamp: number }>();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 // Add cart functions
 function addToCartLocalStorage(item: CartItem) {
@@ -89,28 +93,15 @@ interface ListingCardProps {
   listing: Listing;
 }
 
-export function ListingCard({ listing }: ListingCardProps) {
+export const ListingCard = memo(function ListingCard({ listing }: ListingCardProps) {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid);
-        // Check if this product is in the user's wishlist
-        const favDoc = await getDoc(doc(db, 'users', user.uid, 'wishlist', listing.id));
-        setIsFavorite(favDoc.exists());
-      } else {
-        setUserId(null);
-        setIsFavorite(false);
-      }
-    });
-    return () => unsubscribe();
-  }, [listing.id]);
-
-  const handleAddToCart = async () => {
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleAddToCart = useCallback(async () => {
     if (listing.status !== 'approved') {
       toast({
         variant: "destructive",
@@ -161,9 +152,9 @@ export function ListingCard({ listing }: ListingCardProps) {
         description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
       });
     }
-  };
+  }, [listing, userId, toast]);
 
-  const handleToggleFavorite = async () => {
+  const handleToggleFavorite = useCallback(async () => {
     if (!userId) {
       toast({
         variant: "destructive",
@@ -198,7 +189,37 @@ export function ListingCard({ listing }: ListingCardProps) {
       });
     }
     setLoading(false);
-  };
+  }, [listing.id, listing.name, userId, isFavorite, toast]);
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    // Check cache first
+    const cached = authCache.get('current');
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      setUserId(cached.user?.uid || null);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        // Cache the user
+        authCache.set('current', { user, timestamp: Date.now() });
+        
+        // Check if this product is in the user's wishlist
+        const favDoc = await getDoc(doc(db, 'users', user.uid, 'wishlist', listing.id));
+        setIsFavorite(favDoc.exists());
+      } else {
+        setUserId(null);
+        setIsFavorite(false);
+        authCache.delete('current');
+      }
+    });
+    return () => unsubscribe();
+  }, [listing.id]);
 
   return (
     <Card className="group flex flex-col overflow-hidden rounded-lg border bg-card shadow-md hover:shadow-xl transition-all duration-300 h-full">
@@ -215,9 +236,19 @@ export function ListingCard({ listing }: ListingCardProps) {
             alt={listing.name}
             layout="fill"
             objectFit="cover"
-            className="transition-transform duration-500 ease-in-out group-hover:scale-110"
+            className={`transition-transform duration-500 ease-in-out group-hover:scale-110 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
             data-ai-hint={listing.dataAiHint || 'articol lucrat manual'}
+            onLoad={handleImageLoad}
+            loading="lazy"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
+          {!imageLoaded && (
+            <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+            </div>
+          )}
         </div>
       </Link>
       <CardHeader className="p-4">
@@ -262,4 +293,4 @@ export function ListingCard({ listing }: ListingCardProps) {
       </CardFooter>
     </Card>
   );
-}
+});

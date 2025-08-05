@@ -1,7 +1,7 @@
 // src/components/layout/Header.tsx
 "use client";
 import Link from 'next/link';
-import { Search, ShoppingCart, UserCircle, Menu as MenuIcon, Heart, Settings2, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, UserCircle, Menu as MenuIcon, Heart, Settings2, LogOut, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -24,9 +24,9 @@ import { useState, useEffect } from 'react';
 import { navigationCategories, type NavCategory } from '@/lib/nav-data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useCart } from '@/hooks/use-cart';
-
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 
 export function Header() {
   const router = useRouter();
@@ -34,21 +34,46 @@ export function Header() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasShop, setHasShop] = useState(false);
   const { cartCount, cartItems, loading } = useCart();
 
   console.log('Header - Cart count:', cartCount, 'Cart items:', cartItems, 'Loading:', loading);
 
   useEffect(() => {
     console.log('Header: Setting up auth listener');
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('Header: Auth state changed, user:', user ? user.uid : 'null');
       if (user) {
         setCurrentUser(user);
         setIsAuthenticated(true);
         console.log('Header: User authenticated:', user.uid);
+        
+        // Check if user has a shop
+        try {
+          console.log('Header: Checking shop for user ID:', user.uid);
+          
+          // Use the same logic as AccountDashboard - look for shop document with user UID as document ID
+          const shopDoc = await getDoc(doc(db, 'shops', user.uid));
+          const hasShopResult = shopDoc.exists();
+          
+          console.log('Header: Shop exists:', hasShopResult);
+          
+          setHasShop(hasShopResult);
+          
+          if (hasShopResult) {
+            console.log('Header: User has a shop detected');
+            console.log('Header: Shop data:', shopDoc.data());
+          } else {
+            console.log('Header: No shop found for user');
+          }
+        } catch (error) {
+          console.error('Error checking shop status:', error);
+          setHasShop(false);
+        }
       } else {
         setCurrentUser(null);
         setIsAuthenticated(false);
+        setHasShop(false);
         console.log('Header: No user authenticated');
       }
     });
@@ -73,6 +98,7 @@ export function Header() {
       await signOut(auth);
       setIsAuthenticated(false);
       setCurrentUser(null);
+      setHasShop(false);
       router.push('/');
       router.refresh();
     } catch (error) {
@@ -200,13 +226,16 @@ export function Header() {
                   <DropdownMenuLabel className="text-base">Salut, {currentUser.displayName || 'Meșter'}!</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild className="text-sm"><Link href="/account">Panoul meu de bord</Link></DropdownMenuItem>
-                  {currentUser.hasShop && (
+                  {hasShop && (
                     <>
                        <DropdownMenuItem asChild className="text-sm"><Link href="/sell/dashboard">Pupitrul meșterului</Link></DropdownMenuItem>
                        <DropdownMenuItem asChild className="text-sm"><Link href="/sell/listings">Minunățiile mele</Link></DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuItem asChild className="text-sm"><Link href="/profile/wishlist">Favoritele mele</Link></DropdownMenuItem>
+                  {hasShop && (
+                    <DropdownMenuItem asChild className="text-sm"><Link href="/profile/my-shop">Atelierul meu</Link></DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                       onClick={handleLogout}
@@ -264,11 +293,16 @@ export function Header() {
                                 <Link href="/account" className="flex items-center"> <Settings2 className="mr-3 h-5 w-5" /> Panoul meu</Link>
                             </Button>
                          </SheetClose>
-                          {currentUser.hasShop && (
+                          {hasShop && (
                             <>
                              <SheetClose asChild>
-                                <Button variant="ghost" asChild className="text-base font-medium text-foreground hover:text-primary justify-start pl-10 w-full py-3">
+                                <Button variant="ghost" asChild className="text-base font-medium text-foreground hover:text-primary justify-start w-full py-3">
                                     <Link href="/sell/dashboard">Pupitrul meșterului</Link>
+                                </Button>
+                             </SheetClose>
+                             <SheetClose asChild>
+                                <Button variant="ghost" asChild className="text-base font-medium text-foreground hover:text-primary justify-start pl-10 w-full py-3">
+                                    <Link href="/sell/listings">Minunățiile mele</Link>
                                 </Button>
                              </SheetClose>
                             </>
@@ -278,6 +312,13 @@ export function Header() {
                                 <Link href="/profile/wishlist" className="flex items-center"> <Heart className="mr-3 h-5 w-5" /> Favoritele mele</Link>
                             </Button>
                          </SheetClose>
+                          {hasShop && (
+                            <SheetClose asChild>
+                                <Button variant="ghost" asChild className="text-base font-medium text-foreground hover:text-primary justify-start w-full py-3">
+                                    <Link href="/profile/my-shop" className="flex items-center"> <Store className="mr-3 h-5 w-5" /> Atelierul meu</Link>
+                                </Button>
+                            </SheetClose>
+                          )}
                           <SheetClose asChild>
                             <Button
                                 variant="ghost"

@@ -1,12 +1,35 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy, startAfter } from 'firebase/firestore';
 import { Star } from 'lucide-react';
 import { ListingCard } from '@/components/shared/ListingCard';
 import { navigationCategories } from '@/lib/nav-data';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Cache for search results
+const searchCache = new Map<string, { data: any[], timestamp: number }>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+// Debounce function
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export function SearchSection() {
   const searchParams = useSearchParams();
@@ -23,6 +46,13 @@ export function SearchSection() {
   const [maxProductPrice, setMaxProductPrice] = useState('');
   const [minProductRating, setMinProductRating] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
+
+  // Debounce search term
+  const debouncedSearch = useDebounce(search, 500);
 
   // Show advanced search if ?advanced=1 is present
   useEffect(() => {
@@ -38,51 +68,123 @@ export function SearchSection() {
     const searchTerm = searchParams.get('q');
     if (searchTerm) {
       setSearch(searchTerm);
-      // Perform search automatically
-      performSearch(searchTerm);
     }
   }, [searchParams]);
 
-  const performSearch = async (searchTerm: string) => {
+  // Perform search when debounced search changes
+  useEffect(() => {
+    if (debouncedSearch) {
+      performSearch(debouncedSearch);
+    } else {
+      setResults([]);
+      setProductResults([]);
+    }
+  }, [debouncedSearch]);
+
+  const performSearch = useCallback(async (searchTerm: string, isLoadMore = false) => {
+    if (!searchTerm.trim()) return;
+
     setSearching(true);
     console.log('Searching for:', searchTerm);
     
-    // Fetch all shops
-    const shopsSnap = await getDocs(collection(db, 'shops'));
-    const shops = shopsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log('All shops fetched:', shops.length);
-    console.log('Shop names:', shops.map(s => s.name));
-    console.log('Shop IDs:', shops.map(s => s.id));
+    // Check cache first
+    const cacheKey = `${searchTerm}-${category}-${minRating}-${minReviews}-${productCategory}-${minProductPrice}-${maxProductPrice}-${minProductRating}-${page}`;
+    const cached = searchCache.get(cacheKey);
     
-    // Fetch all products
-    const productsSnap = await getDocs(collection(db, 'listings'));
-    const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Filter by category, rating, reviews
-    const filtered = shops.filter(shop => {
-      let ok = true;
-      if (category && shop.category !== category) ok = false;
-      if (minRating && (!shop.shopRating || shop.shopRating < minRating)) ok = false;
-      if (minReviews && (!shop.shopReviewCount || shop.shopReviewCount < minReviews)) ok = false;
-      return ok;
-    });
-    // Compute score for each shop
-    const scored = filtered.map(shop => {
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION && !isLoadMore) {
+      console.log('Using cached search results');
+      setResults(cached.data.filter(item => item.type === 'shop'));
+      setProductResults(cached.data.filter(item => item.type === 'product'));
+      setSearching(false);
+      return;
+    }
+
+    try {
+      // Build optimized queries
+      const shopQuery = buildShopQuery(searchTerm, category, minRating, minReviews);
+      const productQuery = buildProductQuery(searchTerm, productCategory, minProductPrice, maxProductPrice, minProductRating);
+
+      // Execute queries in parallel
+      const [shopsSnap, productsSnap] = await Promise.all([
+        getDocs(shopQuery),
+        getDocs(productQuery)
+      ]);
+
+      const shops = shopsSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'shop' }));
+      const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'product' }));
+
+      // Score and rank results
+      const scoredShops = scoreShops(shops, searchTerm);
+      const scoredProducts = scoreProducts(products, searchTerm);
+
+      const allResults = [...scoredShops, ...scoredProducts];
+      
+      // Cache results
+      searchCache.set(cacheKey, { data: allResults, timestamp: Date.now() });
+
+      if (isLoadMore) {
+        setResults(prev => [...prev, ...scoredShops]);
+        setProductResults(prev => [...prev, ...scoredProducts]);
+      } else {
+        setResults(scoredShops);
+        setProductResults(scoredProducts);
+      }
+
+      setLastDoc(productsSnap.docs[productsSnap.docs.length - 1]);
+      setHasMore(productsSnap.docs.length === ITEMS_PER_PAGE);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setSearching(false);
+    }
+  }, [category, minRating, minReviews, productCategory, minProductPrice, maxProductPrice, minProductRating, page]);
+
+  const buildShopQuery = (searchTerm: string, category: string, minRating: number, minReviews: number) => {
+    let q = query(collection(db, 'shops'), limit(ITEMS_PER_PAGE));
+    
+    const conditions = [];
+    if (category) conditions.push(where('category', '==', category));
+    if (minRating > 0) conditions.push(where('shopRating', '>=', minRating));
+    if (minReviews > 0) conditions.push(where('shopReviewCount', '>=', minReviews));
+    
+    if (conditions.length > 0) {
+      q = query(collection(db, 'shops'), ...conditions, limit(ITEMS_PER_PAGE));
+    }
+    
+    return q;
+  };
+
+  const buildProductQuery = (searchTerm: string, category: string, minPrice: string, maxPrice: string, minRating: number) => {
+    let q = query(collection(db, 'listings'), limit(ITEMS_PER_PAGE));
+    
+    const conditions = [];
+    if (category) conditions.push(where('category', '==', category));
+    if (minPrice) conditions.push(where('price', '>=', Number(minPrice)));
+    if (maxPrice) conditions.push(where('price', '<=', Number(maxPrice)));
+    if (minRating > 0) conditions.push(where('rating', '>=', minRating));
+    
+    if (conditions.length > 0) {
+      q = query(collection(db, 'listings'), ...conditions, limit(ITEMS_PER_PAGE));
+    }
+    
+    return q;
+  };
+
+  const scoreShops = (shops: any[], searchTerm: string) => {
+    return shops.map(shop => {
       let score = 0;
       const term = searchTerm.toLowerCase();
       if (shop.name?.toLowerCase().includes(term)) score += 5;
       if (shop.tagline?.toLowerCase().includes(term)) score += 3;
       if (shop.bio?.toLowerCase().includes(term)) score += 2;
-      if (shop.policies?.toLowerCase().includes(term)) score += 1;
-      if (shop.faq?.toLowerCase().includes(term)) score += 1;
       if (shop.shopReviewCount) score += Math.min(shop.shopReviewCount, 10);
       if (shop.shopRating) score += shop.shopRating * 2;
-      console.log(`Shop "${shop.name}" score: ${score} (term: "${term}")`);
       return { ...shop, score };
-    });
-    const ranked = scored.filter(s => s.score > 0).sort((a, b) => b.score - a.score);
-    console.log('Ranked shops:', ranked.map(s => ({ name: s.name, score: s.score })));
-    // Product search and ranking
-    let productScored = products.map(product => {
+    }).filter(s => s.score > 0).sort((a, b) => b.score - a.score);
+  };
+
+  const scoreProducts = (products: any[], searchTerm: string) => {
+    return products.map(product => {
       let score = 0;
       const term = searchTerm.toLowerCase();
       if (product.name?.toLowerCase().includes(term)) score += 5;
@@ -92,26 +194,31 @@ export function SearchSection() {
       if (product.rating) score += product.rating * 2;
       if (product.reviewCount) score += Math.min(product.reviewCount, 10);
       return { ...product, score };
-    });
-    // Product filters
-    productScored = productScored.filter(product => {
-      let ok = true;
-      if (productCategory && product.category !== productCategory) ok = false;
-      if (minProductPrice && Number(product.price) < Number(minProductPrice)) ok = false;
-      if (maxProductPrice && Number(product.price) > Number(maxProductPrice)) ok = false;
-      if (minProductRating && (!product.rating || product.rating < minProductRating)) ok = false;
-      return ok;
-    });
-    const productRanked = productScored.filter(p => p.score > 0).sort((a, b) => b.score - a.score);
-    setProductResults(productRanked);
-    setResults(ranked);
-    setSearching(false);
+    }).filter(p => p.score > 0).sort((a, b) => b.score - a.score);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPage(1);
     performSearch(search);
   };
+
+  const loadMore = () => {
+    setPage(prev => prev + 1);
+    performSearch(search, true);
+  };
+
+  const renderSkeleton = () => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="border rounded-lg p-4">
+          <Skeleton className="h-48 w-full mb-4" />
+          <Skeleton className="h-4 w-3/4 mb-2" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -186,14 +293,17 @@ export function SearchSection() {
           </div>
         </form>
       )}
+      
       {/* Search Results */}
-      {searching && <div className="mb-8 text-center">Se caută...</div>}
+      {searching && renderSkeleton()}
+      
       {!searching && (search || searchParams.get('q')) && results.length === 0 && productResults.length === 0 && (
         <div className="mb-8 text-center">
           <p className="text-lg text-muted-foreground">Nu s-au găsit rezultate pentru "{search || searchParams.get('q')}"</p>
           <p className="text-sm text-muted-foreground">Încearcă să cauți cu alți termeni sau explorează categoriile noastre.</p>
         </div>
       )}
+      
       {!searching && results.length > 0 && (
         <div className="mb-8 max-w-4xl mx-auto">
           <h2 className="text-xl font-bold mb-4">Rezultate ateliere ({results.length})</h2>
@@ -235,6 +345,7 @@ export function SearchSection() {
           </div>
         </div>
       )}
+      
       {!searching && productResults.length > 0 && (
         <div className="mb-8 max-w-4xl mx-auto">
           <h2 className="text-xl font-bold mb-4">Rezultate produse ({productResults.length})</h2>
@@ -243,6 +354,13 @@ export function SearchSection() {
               <ListingCard key={product.id} listing={product} />
             ))}
           </div>
+          {hasMore && (
+            <div className="text-center mt-8">
+              <Button onClick={loadMore} variant="outline">
+                Încarcă mai multe
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>

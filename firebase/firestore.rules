@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return request.auth.token.admin == true;
+    }
+    
+    function isValidShop() {
+      return request.resource.data.keys().hasAll(['name', 'category', 'tagline']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.name.size() <= 100;
+    }
+    
+    function isValidListing() {
+      return request.resource.data.keys().hasAll(['name', 'price', 'description', 'sellerId']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.name.size() <= 200 &&
+             request.resource.data.price is number &&
+             request.resource.data.price > 0;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isOwner(userId);
+      
+      // User subcollections
+      match /wishlist/{itemId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+      
+      match /favoriteShops/{shopId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+      
+      match /notifications/{notificationId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+    }
+
+    // Shops collection - optimized for performance
+    match /shops/{shopId} {
+      allow read: if true; // Public read for performance
+      allow create: if isAuthenticated() && isValidShop();
+      allow update: if isAuthenticated() && (isOwner(resource.data.ownerId) || isAdmin());
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
+    // Listings collection - optimized for performance
+    match /listings/{listingId} {
+      allow read: if true; // Public read for performance
+      allow create: if isAuthenticated() && isValidListing();
+      allow update: if isAuthenticated() && (isOwner(resource.data.sellerId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.sellerId) || isAdmin());
+    }
+
+    // Cart collection - optimized for performance
+    match /cart/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.customerId) || 
+        isOwner(resource.data.sellerId) || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.customerId) || 
+        isOwner(resource.data.sellerId) || 
+        isAdmin()
+      );
+    }
+
+    // Reports collection
+    match /reports/{reportId} {
+      allow read, write: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && isAdmin();
+    }
+
+    // Admin-only collections
+    match /admin/{document=**} {
+      allow read, write: if isAuthenticated() && isAdmin();
+    }
+
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

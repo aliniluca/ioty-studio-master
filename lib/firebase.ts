@@ -1,9 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { onAuthStateChanged } from "firebase/auth";
+import { getAnalytics, isSupported } from "firebase/analytics";
+import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, connectAuthEmulator } from "firebase/auth";
+import { getPerformance } from "firebase/performance";
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -19,14 +19,42 @@ const firebaseConfig = {
 // Make sure we don't initialize the app more than once
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Only get analytics on the client
-let analytics;
+// Initialize services only on client side
+let analytics = null;
+let performance = null;
+
 if (typeof window !== "undefined") {
-  analytics = getAnalytics(app);
+  // Initialize analytics only if supported
+  isSupported().then(yes => yes ? analytics = getAnalytics(app) : null);
+  
+  // Initialize performance monitoring
+  try {
+    performance = getPerformance(app);
+  } catch (error) {
+    console.warn('Firebase Performance not available:', error);
+  }
 }
 
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-export { app, analytics, db, auth, googleProvider };
+// Enable offline persistence for better performance
+if (typeof window !== "undefined") {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('The current browser doesn\'t support persistence.');
+    }
+  });
+}
+
+// Connect to emulators in development
+if (process.env.NODE_ENV === 'development') {
+  // Uncomment these lines if you want to use Firebase emulators
+  // connectFirestoreEmulator(db, 'localhost', 8080);
+  // connectAuthEmulator(auth, 'http://localhost:9099');
+}
+
+export { app, analytics, performance, db, auth, googleProvider };
