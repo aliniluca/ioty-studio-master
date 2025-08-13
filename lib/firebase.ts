@@ -1,5 +1,5 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, setLogLevel } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from "firebase/auth";
@@ -24,6 +24,8 @@ let analytics = null;
 let performance = null;
 
 if (typeof window !== "undefined") {
+  // Silence Firebase SDK logs to avoid console noise in the client
+  try { setLogLevel('silent'); } catch {}
   // Initialize analytics only if supported
   isSupported().then(yes => yes ? analytics = getAnalytics(app) : null);
   

@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import type { Review as ReviewType, ProductDetails, ShopDetails, CartItem } from '@/lib/mock-data-types'; 
 import { PlaceholderContent } from '@/components/shared/PlaceholderContent';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
+import { useToast } from '@/hooks/use-toast';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 function addToCart(item: CartItem) {
@@ -91,6 +91,7 @@ interface ProductDetailClientProps {
 }
 
 export default function ProductDetailClient({ params }: ProductDetailClientProps) {
+  const { toast } = useToast();
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [seller, setSeller] = useState<ShopDetails | null>(null);
@@ -191,11 +192,11 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
     try {
       const docRef = doc(db, "listings", params.id);
       await setDoc(docRef, { status: 'pending_approval' }, { merge: true });
-      toast.success('Listing resubmitted for moderation!');
+      toast({ title: 'Trimis la moderare', description: 'Anunțul a fost retrimis pentru aprobare.' });
       // Optionally, refetch product
       setProduct({ ...product, status: 'pending_approval' });
     } catch (e) {
-      toast.error('Failed to re-apply. Please try again.');
+      toast({ variant: 'destructive', title: 'Eroare', description: 'Reîncercarea a eșuat. Încearcă din nou.' });
     } finally {
       setReapplying(false);
     }
@@ -221,9 +222,9 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
       await setDoc(docRef, editProduct, { merge: true });
       setProduct(editProduct);
       setEditMode(false);
-      toast.success('Modificările au fost salvate!');
+      toast({ title: 'Salvat', description: 'Modificările au fost salvate.' });
     } catch (e) {
-      toast.error('Eroare la salvarea modificărilor.');
+      toast({ variant: 'destructive', title: 'Eroare', description: 'Eroare la salvarea modificărilor.' });
     }
   };
 
@@ -236,15 +237,13 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
 
   const handleAddToCart = async () => {
     if (!product) {
-      console.error('No product data available');
-      toast.error('Nu s-a putut adăuga în coș - produs indisponibil');
+      toast({ variant: 'destructive', title: 'Eroare', description: 'Produs indisponibil' });
       return;
     }
 
     // Validate required fields
     if (!product.id || !product.name || product.price === undefined) {
-      console.error('Invalid product data:', product);
-      toast.error('Datele produsului sunt incomplete');
+      toast({ variant: 'destructive', title: 'Eroare', description: 'Datele produsului sunt incomplete' });
       return;
     }
 
@@ -267,34 +266,38 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
         // Write cart item
         await addToCartFirestore(currentUserId, item);
         
-        toast.success('Adăugat în coș!');
+      toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
       } catch (e) {
-        toast.error(`Eroare la adăugare în coș: ${e instanceof Error ? e.message : 'Unknown error'}`);
+        toast({
+          variant: 'destructive',
+          title: 'Eroare la adăugare în coș',
+          description: e instanceof Error ? e.message : 'Eroare necunoscută',
+        });
       }
     } else {
       addToCart(item); // fallback to localStorage
-      toast.success('Adăugat în coș!');
+      toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
     }
   };
 
   const handleToggleFavorite = async () => {
     if (!product) return;
     if (!currentUserId) {
-      toast.error('Trebuie să fii autentificat pentru a salva la favorite!');
+      toast({ variant: 'destructive', title: 'Autentificare necesară', description: 'Intră în cont pentru a salva la favorite.' });
       return;
     }
     try {
       if (isFavorite) {
         await removeFromWishlistFirestore(currentUserId, product.id);
         setIsFavorite(false);
-        toast.success('Eliminat din favorite!');
+        toast({ title: 'Eliminat din favorite' });
       } else {
         await addToWishlistFirestore(currentUserId, product.id);
         setIsFavorite(true);
-        toast.success('Adăugat la favorite!');
+        toast({ title: 'Adăugat la favorite' });
       }
     } catch (e) {
-      toast.error('Eroare la favorite!');
+      toast({ variant: 'destructive', title: 'Eroare', description: 'Eroare la favorite.' });
     }
   };
 

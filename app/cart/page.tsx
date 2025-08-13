@@ -21,6 +21,7 @@ export default function CartPage() {
 
   useEffect(() => {
     const auth = getAuth();
+    let unsubscribeCart: (() => void) | null = null;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUserId(user.uid);
@@ -41,6 +42,7 @@ export default function CartPage() {
           setCartItems([]);
         }
       } else {
+        if (unsubscribeCart) { unsubscribeCart(); unsubscribeCart = null; }
         setCurrentUserId(null);
         // Load cart from localStorage
         if (typeof window !== 'undefined') {
@@ -49,7 +51,7 @@ export default function CartPage() {
         }
       }
     });
-    return () => unsubscribe();
+    return () => { if (unsubscribeCart) unsubscribeCart(); unsubscribe(); };
   }, []);
 
   const updateCartItem = async (updatedItem: CartItem) => {
