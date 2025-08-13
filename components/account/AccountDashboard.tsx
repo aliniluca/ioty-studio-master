@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Store, PlusCircle, Edit3, LayoutDashboard, MessageSquare, UserCog, Settings, LogOut, ShoppingBag, Heart, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation'; // For logout
+import type { UserAccount } from '@/lib/mock-data-types';
 
 interface AccountDashboardProps {
   user: UserAccount;

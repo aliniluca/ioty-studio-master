@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import type { UserAccount } from '@/lib/mock-data-types';
 
 export default function MyAccountPage() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);

@@ -1,4 +1,5 @@
 // src/lib/mock-data-types.ts
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export interface Review {
   id: string;
@@ -158,4 +159,11 @@ export interface CartItem {
   productId: string;
   dataAiHint?: string;
 }
+
+export type UserAccount = Partial<FirebaseUser> & {
+  isAdmin?: boolean;
+  hasShop?: boolean;
+  shopId?: string;
+  shopName?: string;
+};
 
