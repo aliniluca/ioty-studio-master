@@ -4,7 +4,7 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Toaster } from "@/components/ui/toaster"
-import { NotificationBell } from '@/components/shared/NotificationBell';
+import { NotificationBellGate } from '@/components/shared/NotificationBellGate';
 import { Suspense } from 'react';
 
 const inter = Inter({
@@ -94,7 +94,7 @@ export default function RootLayout({
           <Header />
           <div className="absolute top-4 right-8 z-50">
             <Suspense fallback={<div className="w-6 h-6 bg-gray-200 rounded animate-pulse" />}>
-              <NotificationBell />
+              <NotificationBellGate />
             </Suspense>
           </div>
           <main className="flex-grow container mx-auto px-4 py-8">
