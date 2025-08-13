@@ -32,7 +32,7 @@ export function NotificationBell() {
       notificationCache.set(uid, { count, timestamp: Date.now() });
       setUnread(count);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      // Ignore to keep console clean for guests
       setUnread(0);
     }
   }, []);
@@ -50,7 +50,7 @@ export function NotificationBell() {
           notificationCache.set(user.uid, { count, timestamp: Date.now() });
           setUnread(count);
         }, (error) => {
-          console.error('Error listening to notifications:', error);
+          // Ignore to keep console clean for guests
         });
         
         return () => {

@@ -73,7 +73,7 @@ export function useCart() {
           }
           setLoading(false);
         }, (error) => {
-          console.error('useCart: Error listening to cart:', error);
+          // Silently handle Firestore listener errors to avoid console noise
           setCartItems([]);
           updateCartCount([]);
           setLoading(false);
@@ -102,6 +102,25 @@ export function useCart() {
       unsubscribe();
     };
   }, [updateCartCount]);
+
+  // Listen for local cart updates while logged out
+  useEffect(() => {
+    function handleLocalCartUpdated() {
+      if (!currentUserId && typeof window !== 'undefined') {
+        const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
+        setCartItems(items);
+        updateCartCount(items);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('cart:updated', handleLocalCartUpdated);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('cart:updated', handleLocalCartUpdated);
+      }
+    };
+  }, [currentUserId, updateCartCount]);
 
   // Update cart count when cartItems change
   useEffect(() => {

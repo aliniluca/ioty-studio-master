@@ -67,7 +67,6 @@ export function Header() {
             console.log('Header: No shop found for user');
           }
         } catch (error) {
-          console.error('Error checking shop status:', error);
           setHasShop(false);
         }
       } else {
@@ -101,9 +100,7 @@ export function Header() {
       setHasShop(false);
       router.push('/');
       router.refresh();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    } catch (error) {}
   };
 
   const renderCategoryDropdownItem = (category: NavCategory) => {
@@ -346,7 +343,16 @@ export function Header() {
                     <DropdownMenuSeparator className="my-4"/>
                     <p className="text-sm font-semibold text-muted-foreground px-2 pt-2">Categorii de minunății</p>
                     {navigationCategories.map((category) => (
-                      <SheetClose asChild key={category.slug}>{(sheetContext: { close: () => void; }) => renderMobileCategoryLink(category, sheetContext.close)}</SheetClose>
+                      <SheetClose asChild key={category.slug}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => { router.push(category.href); }}
+                          className="text-base font-medium text-foreground hover:text-primary justify-start w-full py-3"
+                        >
+                          {category.icon && <category.icon className="mr-3 h-5 w-5" />}
+                          {category.label}
+                        </Button>
+                      </SheetClose>
                     ))}
                   </nav>
                 </ScrollArea>

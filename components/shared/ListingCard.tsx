@@ -30,6 +30,9 @@ function addToCartLocalStorage(item: CartItem) {
     cart.push(item);
   }
   localStorage.setItem('cart', JSON.stringify(cart));
+  try {
+    window.dispatchEvent(new CustomEvent('cart:updated'));
+  } catch {}
 }
 
 function addToCartFirestore(userId: string, item: CartItem) {
@@ -66,25 +69,12 @@ function addToCartFirestore(userId: string, item: CartItem) {
         console.log('Cart successfully updated in Firestore');
         return true;
       }).catch((error) => {
-        console.error('Error in setDoc:', error);
-        console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          stack: error.stack
-        });
         throw error;
       });
     }).catch((error) => {
-      console.error('Error in getDoc:', error);
-      console.error('Error details:', {
-        code: error.code,
-        message: error.message,
-        stack: error.stack
-      });
       throw error;
     });
   } catch (error) {
-    console.error('Error in addToCartFirestore:', error);
     throw error;
   }
 }
@@ -132,13 +122,7 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
           description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
         });
       } catch (e) {
-        console.error('Error in handleAddToCart:', e);
         const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-        console.error('Error details:', {
-          code: e instanceof Error && 'code' in e ? e.code : 'unknown',
-          message: errorMessage,
-          stack: e instanceof Error ? e.stack : 'No stack trace'
-        });
         toast({
           variant: "destructive",
           title: "Eroare la adăugare în coș!",

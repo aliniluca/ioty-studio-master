@@ -133,7 +133,7 @@ export function SearchSection() {
       setLastDoc(productsSnap.docs[productsSnap.docs.length - 1]);
       setHasMore(productsSnap.docs.length === ITEMS_PER_PAGE);
     } catch (error) {
-      console.error('Search error:', error);
+      // Ignore to keep console clean
     } finally {
       setSearching(false);
     }

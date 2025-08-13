@@ -30,7 +30,6 @@ export default function CartPage() {
           const cartSnap = await getDoc(cartRef);
           if (cartSnap.exists()) {
             const cartData = cartSnap.data();
-            // Extract cart items from the document
             const items = Object.values(cartData).filter(item => 
               typeof item === 'object' && item !== null && 'id' in item
             ) as CartItem[];
@@ -38,8 +37,7 @@ export default function CartPage() {
           } else {
             setCartItems([]);
           }
-        } catch (error) {
-          console.error('Error loading cart:', error);
+        } catch {
           setCartItems([]);
         }
       } else {
@@ -67,8 +65,7 @@ export default function CartPage() {
           lastUpdated: new Date()
         };
         await setDoc(cartRef, updatedCart);
-      } catch (error) {
-        console.error('Error updating cart item:', error);
+      } catch {
       }
     } else {
       // Update localStorage
@@ -99,8 +96,7 @@ export default function CartPage() {
             lastUpdated: new Date()
           });
         }
-      } catch (error) {
-        console.error('Error removing cart item:', error);
+      } catch {
       }
     } else {
       // Remove from localStorage

@@ -70,7 +70,6 @@ export function useOptimizedWishlist() {
       setWishlist(products.filter(Boolean));
       setFavoriteShops(shops.filter(Boolean));
     } catch (error) {
-      console.error('Error fetching wishlist data:', error);
       setWishlist([]);
       setFavoriteShops([]);
     } finally {
@@ -92,14 +91,14 @@ export function useOptimizedWishlist() {
           // Refresh wishlist data when changes occur
           await fetchWishlistData(user.uid);
         }, (error) => {
-          console.error('Wishlist listener error:', error);
+          // Ignore to keep console clean
         });
         
         const unsubscribeFavShops = onSnapshot(favShopsRef, async () => {
           // Refresh favorite shops data when changes occur
           await fetchWishlistData(user.uid);
         }, (error) => {
-          console.error('Favorite shops listener error:', error);
+          // Ignore to keep console clean
         });
         
         return () => {

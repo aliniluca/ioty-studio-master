@@ -29,6 +29,9 @@ function addToCart(item: CartItem) {
     cart.push(item);
   }
   localStorage.setItem('cart', JSON.stringify(cart));
+  try {
+    window.dispatchEvent(new CustomEvent('cart:updated'));
+  } catch {}
 }
 
 function addToCartFirestore(userId: string, item: CartItem) {
@@ -62,18 +65,14 @@ function addToCartFirestore(userId: string, item: CartItem) {
       console.log('Updated cart data:', updatedCart);
       
       return setDoc(cartRef, updatedCart).then(() => {
-        console.log('Cart successfully updated in Firestore');
         return true;
       }).catch((error) => {
-        console.error('Error in setDoc:', error);
         throw error;
       });
     }).catch((error) => {
-      console.error('Error in getDoc:', error);
       throw error;
     });
   } catch (error) {
-    console.error('Error in addToCartFirestore:', error);
     throw error;
   }
 }
@@ -265,36 +264,14 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
 
     if (currentUserId) {
       try {
-        console.log('Adding to Firestore for user:', currentUserId);
-        
-        // Test: Try to write a simple test document first
-        const testRef = doc(db, 'cart', currentUserId);
-        await setDoc(testRef, { test: true, timestamp: new Date() });
-        console.log('Test write successful');
-        
+        // Write cart item
         await addToCartFirestore(currentUserId, item);
-        console.log('Successfully added to Firestore');
-        
-        // Test: Read back the cart to verify it was saved
-        const testCartRef = doc(db, 'cart', currentUserId);
-        const testCartSnap = await getDoc(testCartRef);
-        console.log('Test read - Cart exists:', testCartSnap.exists());
-        if (testCartSnap.exists()) {
-          const testCartData = testCartSnap.data();
-          console.log('Test read - Cart data:', testCartData);
-          const testItems = Object.values(testCartData).filter(item => 
-            typeof item === 'object' && item !== null && 'id' in item
-          ) as CartItem[];
-          console.log('Test read - Extracted items:', testItems);
-        }
         
         toast.success('Adăugat în coș!');
       } catch (e) {
-        console.error('Error adding to Firestore:', e);
         toast.error(`Eroare la adăugare în coș: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
     } else {
-      console.log('Adding to localStorage (no user)');
       addToCart(item); // fallback to localStorage
       toast.success('Adăugat în coș!');
     }
