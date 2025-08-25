@@ -33,11 +33,11 @@ export async function addToCartFirestore(userId: string, item: CartItem): Promis
       cleanItem.quantity = (existingItem.quantity || 1) + (item.quantity || 1);
     }
     
-    const updatedCart = {
-      ...currentCart,
-      [item.id]: cleanItem,
-      lastUpdated: new Date()
-    };
+          const updatedCart = {
+        ...currentCart,
+        [item.id]: cleanItem,
+        lastUpdated: new Date().toISOString()
+      };
     console.log('Updated cart data:', updatedCart);
     
     await setDoc(cartRef, updatedCart);
@@ -81,7 +81,7 @@ export async function removeFromCartFirestore(userId: string, productId: string)
       
       await setDoc(cartRef, {
         ...updatedCart,
-        lastUpdated: new Date()
+        lastUpdated: new Date().toISOString()
       });
       
       // Update cache
@@ -114,11 +114,11 @@ export async function updateCartItemFirestore(userId: string, updatedItem: CartI
     const docSnap = await getDoc(cartRef);
     const currentCart = docSnap.exists() ? docSnap.data() : {};
     
-    const updatedCart = {
-      ...currentCart,
-      [updatedItem.id]: updatedItem,
-      lastUpdated: new Date()
-    };
+          const updatedCart = {
+        ...currentCart,
+        [updatedItem.id]: updatedItem,
+        lastUpdated: new Date().toISOString()
+      };
     
     await setDoc(cartRef, updatedCart);
     console.log('Cart item successfully updated');

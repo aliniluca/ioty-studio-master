@@ -88,6 +88,19 @@ export default function RootLayout({
         
         {/* Performance hints */}
         <link rel="preload" href="/api/health" as="fetch" crossOrigin="anonymous" />
+        
+        {/* Fix for simulateUserLogout error - immediate definition */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Immediate fix for simulateUserLogout error
+              window.simulateUserLogout = function() {
+                console.log('simulateUserLogout called - this is a development function');
+                // This function is only for development purposes
+              };
+            `,
+          }}
+        />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <div className="flex flex-col min-h-screen bg-background">
@@ -103,6 +116,21 @@ export default function RootLayout({
           <Footer />
         </div>
         <Toaster />
+        
+        {/* Fix for simulateUserLogout error - must be first */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Fix for simulateUserLogout error (development only)
+              if (typeof window !== 'undefined') {
+                window.simulateUserLogout = function() {
+                  console.log('simulateUserLogout called - this is a development function');
+                  // This function is only for development purposes
+                };
+              }
+            `,
+          }}
+        />
         
         {/* Performance monitoring script */}
         <script
@@ -128,14 +156,6 @@ export default function RootLayout({
                     console.log('ServiceWorker registration failed: ', err);
                   });
                 });
-              }
-              
-              // Fix for simulateUserLogout error (development only)
-              if (typeof window !== 'undefined') {
-                window.simulateUserLogout = function() {
-                  console.log('simulateUserLogout called - this is a development function');
-                  // This function is only for development purposes
-                };
               }
             `,
           }}

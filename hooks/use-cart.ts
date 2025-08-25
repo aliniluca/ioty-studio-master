@@ -80,7 +80,7 @@ export function useCart() {
               
               await setDoc(cartRef, {
                 ...mergedCart,
-                lastUpdated: new Date()
+                lastUpdated: new Date().toISOString()
               });
               
               // Clear localStorage after successful sync
