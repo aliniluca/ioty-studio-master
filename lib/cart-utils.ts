@@ -50,8 +50,16 @@ export async function addToCartFirestore(userId: string, item: CartItem): Promis
     cartCache.set(userId, { data: items, timestamp: Date.now() });
     
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in addToCartFirestore:', error);
+    
+    // If permission denied, fall back to localStorage
+    if (error.code === 'permission-denied') {
+      console.log('Permission denied, falling back to localStorage');
+      addToCartLocalStorage(item);
+      return false; // Indicate fallback was used
+    }
+    
     throw error;
   }
 }

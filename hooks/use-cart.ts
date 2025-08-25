@@ -92,39 +92,56 @@ export function useCart() {
           }
         }
 
-        // Set up real-time listener
-        const cartRef = doc(db, 'cart', user.uid);
-        console.log('useCart: Cart reference created:', cartRef.path);
+        // Set up real-time listener with error handling
+        try {
+          const cartRef = doc(db, 'cart', user.uid);
+          console.log('useCart: Cart reference created:', cartRef.path);
 
-        unsubscribeCart = onSnapshot(
-          cartRef,
-          (snapshot) => {
-            console.log('useCart: Cart snapshot received:', snapshot.exists());
-            if (snapshot.exists()) {
-              const cartData = snapshot.data();
-              console.log('useCart: Cart data from snapshot:', cartData);
-              const items = Object.values(cartData).filter(
-                (item) => typeof item === 'object' && item !== null && 'id' in item
-              ) as CartItem[];
-              console.log('useCart: Extracted cart items:', items);
-              cartCache.set(user.uid, { data: items, timestamp: Date.now() });
-              setCartItems(items);
-              updateCartCount(items);
-            } else {
-              console.log('useCart: Cart document does not exist');
-              setCartItems([]);
-              updateCartCount([]);
-              cartCache.delete(user.uid);
+          unsubscribeCart = onSnapshot(
+            cartRef,
+            (snapshot) => {
+              console.log('useCart: Cart snapshot received:', snapshot.exists());
+              if (snapshot.exists()) {
+                const cartData = snapshot.data();
+                console.log('useCart: Cart data from snapshot:', cartData);
+                const items = Object.values(cartData).filter(
+                  (item) => typeof item === 'object' && item !== null && 'id' in item
+                ) as CartItem[];
+                console.log('useCart: Extracted cart items:', items);
+                cartCache.set(user.uid, { data: items, timestamp: Date.now() });
+                setCartItems(items);
+                updateCartCount(items);
+              } else {
+                console.log('useCart: Cart document does not exist');
+                setCartItems([]);
+                updateCartCount([]);
+                cartCache.delete(user.uid);
+              }
+              setLoading(false);
+            },
+            (error) => {
+              console.error('useCart: Error in cart snapshot:', error);
+              // If permission denied, fall back to localStorage
+              if (error.code === 'permission-denied') {
+                console.log('useCart: Permission denied, falling back to localStorage');
+                const localItems = getCartFromLocalStorage();
+                setCartItems(localItems);
+                updateCartCount(localItems);
+              } else {
+                setCartItems([]);
+                updateCartCount([]);
+              }
+              setLoading(false);
             }
-            setLoading(false);
-          },
-          (error) => {
-            console.error('useCart: Error in cart snapshot:', error);
-            setCartItems([]);
-            updateCartCount([]);
-            setLoading(false);
-          }
-        );
+          );
+        } catch (error) {
+          console.error('useCart: Error setting up cart listener:', error);
+          // Fall back to localStorage if there's any error
+          const localItems = getCartFromLocalStorage();
+          setCartItems(localItems);
+          updateCartCount(localItems);
+          setLoading(false);
+        }
       } else {
         console.log('useCart: No user, setting up localStorage');
         setCurrentUserId(null);

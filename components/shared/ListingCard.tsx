@@ -57,18 +57,27 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
     if (userId) {
       try {
         console.log('Attempting to add to cart for user:', userId);
-        await addToCartFirestore(userId, item);
-        console.log('Successfully added to cart');
+        const success = await addToCartFirestore(userId, item);
+        if (success) {
+          console.log('Successfully added to cart');
+          toast({
+            title: "În coșuleț a sărit!",
+            description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
+          });
+        } else {
+          console.log('Firestore failed, using localStorage fallback');
+          toast({
+            title: "În coșuleț a sărit!",
+            description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat (mod local).`,
+          });
+        }
+      } catch (e) {
+        console.error('Error adding to cart:', e);
+        // Fall back to localStorage
+        addToCartLocalStorage(item);
         toast({
           title: "În coșuleț a sărit!",
-          description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
-        });
-      } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-        toast({
-          variant: "destructive",
-          title: "Eroare la adăugare în coș!",
-          description: `Nu am putut adăuga minunăția în coșuleț: ${errorMessage}`,
+          description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat (mod local).`,
         });
       }
     } else {

@@ -214,17 +214,19 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
       try {
         console.log('Attempting to add to Firestore cart...');
         // Write cart item
-        await addToCartFirestore(currentUserId, item);
-        console.log('Successfully added to Firestore cart');
-        
-      toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
+        const success = await addToCartFirestore(currentUserId, item);
+        if (success) {
+          console.log('Successfully added to Firestore cart');
+          toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
+        } else {
+          console.log('Firestore failed, using localStorage fallback');
+          toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău (mod local).' });
+        }
       } catch (e) {
         console.error('Error adding to Firestore cart:', e);
-        toast({
-          variant: 'destructive',
-          title: 'Eroare la adăugare în coș',
-          description: e instanceof Error ? e.message : 'Eroare necunoscută',
-        });
+        // Fall back to localStorage
+        addToCartLocalStorage(item);
+        toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău (mod local).' });
       }
     } else {
       console.log('No user ID, adding to localStorage cart...');

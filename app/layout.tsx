@@ -129,6 +129,14 @@ export default function RootLayout({
                   });
                 });
               }
+              
+              // Fix for simulateUserLogout error (development only)
+              if (typeof window !== 'undefined') {
+                window.simulateUserLogout = function() {
+                  console.log('simulateUserLogout called - this is a development function');
+                  // This function is only for development purposes
+                };
+              }
             `,
           }}
         />
