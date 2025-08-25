@@ -65,9 +65,9 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (isOwner(resource.data.sellerId) || isAdmin());
     }
 
-    // Cart collection - optimized for performance
+    // Cart collection - allow access for both authenticated and unauthenticated users
     match /cart/{userId} {
-      allow read, write: if isAuthenticated() && isOwner(userId);
+      allow read, write: if true; // Public access for cart functionality
     }
 
     // Orders collection

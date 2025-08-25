@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import type { CartItem } from '@/lib/mock-data-types';
+import { getCartFromLocalStorage, clearLocalStorageCart } from '@/lib/cart-utils';
 
 // Cache for cart data to reduce Firebase calls
 const cartCache = new Map<string, { data: CartItem[], timestamp: number }>();
@@ -53,6 +54,44 @@ export function useCart() {
           setLoading(false);
         }
 
+        // Sync localStorage cart with Firestore if user just logged in
+        if (typeof window !== 'undefined') {
+          const localCart = getCartFromLocalStorage();
+          if (localCart.length > 0) {
+            console.log('useCart: Found local cart items, syncing with Firestore');
+            try {
+              const cartRef = doc(db, 'cart', user.uid);
+              const cartSnap = await getDoc(cartRef);
+              const currentCart = cartSnap.exists() ? cartSnap.data() : {};
+              
+              // Merge local cart with Firestore cart
+              const mergedCart = { ...currentCart };
+              localCart.forEach(item => {
+                const existingItem = mergedCart[item.id];
+                if (existingItem && typeof existingItem === 'object' && 'quantity' in existingItem) {
+                  mergedCart[item.id] = {
+                    ...item,
+                    quantity: (existingItem.quantity || 1) + (item.quantity || 1)
+                  };
+                } else {
+                  mergedCart[item.id] = item;
+                }
+              });
+              
+              await setDoc(cartRef, {
+                ...mergedCart,
+                lastUpdated: new Date()
+              });
+              
+              // Clear localStorage after successful sync
+              clearLocalStorageCart();
+              console.log('useCart: Successfully synced local cart with Firestore');
+            } catch (error) {
+              console.error('useCart: Error syncing local cart with Firestore:', error);
+            }
+          }
+        }
+
         // Set up real-time listener
         const cartRef = doc(db, 'cart', user.uid);
         console.log('useCart: Cart reference created:', cartRef.path);
@@ -79,7 +118,8 @@ export function useCart() {
             }
             setLoading(false);
           },
-          () => {
+          (error) => {
+            console.error('useCart: Error in cart snapshot:', error);
             setCartItems([]);
             updateCartCount([]);
             setLoading(false);
@@ -89,7 +129,7 @@ export function useCart() {
         console.log('useCart: No user, setting up localStorage');
         setCurrentUserId(null);
         if (typeof window !== 'undefined') {
-          const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
+          const items = getCartFromLocalStorage();
           console.log('useCart: Loaded items from localStorage:', items);
           setCartItems(items);
           updateCartCount(items);
@@ -112,7 +152,7 @@ export function useCart() {
   useEffect(() => {
     function handleLocalCartUpdated() {
       if (!currentUserId && typeof window !== 'undefined') {
-        const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
+        const items = getCartFromLocalStorage();
         setCartItems(items);
         updateCartCount(items);
       }

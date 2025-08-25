@@ -13,71 +13,13 @@ import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Heart as HeartIcon, HeartOff } from 'lucide-react';
+import { addToCartFirestore, addToCartLocalStorage } from '@/lib/cart-utils';
 
 // Cache for user authentication state
 const authCache = new Map<string, { user: any, timestamp: number }>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
-// Add cart functions
-function addToCartLocalStorage(item: CartItem) {
-  if (typeof window === 'undefined') return;
-  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-  // If already in cart, increase quantity
-  const idx = cart.findIndex((x: CartItem) => x.id === item.id);
-  if (idx !== -1) {
-    cart[idx].quantity += item.quantity;
-  } else {
-    cart.push(item);
-  }
-  localStorage.setItem('cart', JSON.stringify(cart));
-  try {
-    window.dispatchEvent(new CustomEvent('cart:updated'));
-  } catch {}
-}
-
-function addToCartFirestore(userId: string, item: CartItem) {
-  console.log('addToCartFirestore called with:', { userId, item });
-  
-  if (!userId || !item || !item.id) {
-    throw new Error('Invalid parameters for addToCartFirestore');
-  }
-  
-  try {
-    // Use a single cart document instead of subcollections
-    const cartRef = doc(db, 'cart', userId);
-    console.log('Cart reference created:', cartRef.path);
-    
-    // Get current cart and update it
-    return getDoc(cartRef).then((docSnap) => {
-      console.log('Current cart exists:', docSnap.exists());
-      const currentCart = docSnap.exists() ? docSnap.data() : {};
-      console.log('Current cart data:', currentCart);
-      
-      // Filter out undefined values from the item before saving
-      const cleanItem = Object.fromEntries(
-        Object.entries(item).filter(([_, value]) => value !== undefined)
-      );
-      
-      const updatedCart = {
-        ...currentCart,
-        [item.id]: cleanItem,
-        lastUpdated: new Date()
-      };
-      console.log('Updated cart data:', updatedCart);
-      
-      return setDoc(cartRef, updatedCart).then(() => {
-        console.log('Cart successfully updated in Firestore');
-        return true;
-      }).catch((error) => {
-        throw error;
-      });
-    }).catch((error) => {
-      throw error;
-    });
-  } catch (error) {
-    throw error;
-  }
-}
+// Cart functions are now imported from cart-utils
 
 interface ListingCardProps {
   listing: Listing;

@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Store, PlusCircle, Edit3, LayoutDashboard, MessageSquare, UserCog, Settings, LogOut, ShoppingBag, Heart, MapPin } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // For logout
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import type { UserAccount } from '@/lib/mock-data-types';
 
 interface AccountDashboardProps {
@@ -15,13 +17,17 @@ interface AccountDashboardProps {
 export function AccountDashboard({ user }: AccountDashboardProps) {
   const router = useRouter();
 
-  const handleLogout = () => {
-    // In a real app, you would also call Firebase signOut:
-    // import { auth } from '@/lib/firebase';
-    // import { signOut } from 'firebase/auth';
-    // signOut(auth).then(() => router.push('/')).catch(err => console.error(err));
-    router.push('/');
-    router.refresh(); // Important to update header state
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/');
+      router.refresh(); // Important to update header state
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Still redirect even if signout fails
+      router.push('/');
+      router.refresh();
+    }
   };
 
 

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { addToCartFirestore, addToCartLocalStorage } from "@/lib/cart-utils";
 import Image from 'next/image';
 import { StarRating } from '@/components/shared/StarRating';
 import { Button } from '@/components/ui/button';
@@ -18,67 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-function addToCart(item: CartItem) {
-  if (typeof window === 'undefined') return;
-  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-  // If already in cart, increase quantity
-  const idx = cart.findIndex((x: CartItem) => x.id === item.id);
-  if (idx !== -1) {
-    cart[idx].quantity += item.quantity;
-  } else {
-    cart.push(item);
-  }
-  localStorage.setItem('cart', JSON.stringify(cart));
-  try {
-    window.dispatchEvent(new CustomEvent('cart:updated'));
-  } catch {}
-}
-
-function addToCartFirestore(userId: string, item: CartItem) {
-  console.log('addToCartFirestore called with:', { userId, item });
-  
-  if (!userId || !item || !item.id) {
-    throw new Error('Invalid parameters for addToCartFirestore');
-  }
-  
-  try {
-    // Use a single cart document instead of subcollections
-    const cartRef = doc(db, 'cart', userId);
-    console.log('Cart reference created:', cartRef.path);
-    
-    // Get current cart and update it
-    return getDoc(cartRef).then((docSnap) => {
-      console.log('Current cart exists:', docSnap.exists());
-      const currentCart = docSnap.exists() ? docSnap.data() : {};
-      console.log('Current cart data:', currentCart);
-      
-      // Filter out undefined values from the item before saving
-      const cleanItem = Object.fromEntries(
-        Object.entries(item).filter(([_, value]) => value !== undefined)
-      );
-      
-      const updatedCart = {
-        ...currentCart,
-        [item.id]: cleanItem,
-        lastUpdated: new Date()
-      };
-      console.log('Updated cart data:', updatedCart);
-      
-      return setDoc(cartRef, updatedCart).then(() => {
-        return true;
-      }).catch((error) => {
-        throw error;
-      });
-    }).catch((error) => {
-      throw error;
-    });
-  } catch (error) {
-    throw error;
-  }
-}
-function removeFromCartFirestore(userId: string, productId: string) {
-  return deleteDoc(doc(db, 'users', userId, 'cart', productId));
-}
+// Cart functions are now imported from cart-utils
 function addToWishlistFirestore(userId: string, productId: string) {
   return setDoc(doc(db, 'users', userId, 'wishlist', productId), { addedAt: new Date() });
 }
@@ -236,13 +177,21 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
   };
 
   const handleAddToCart = async () => {
+    alert('Button clicked! Function called!'); // Test alert
+    console.log('handleAddToCart called!');
+    console.log('Product:', product);
+    console.log('Quantity:', quantity);
+    console.log('Current user ID:', currentUserId);
+    
     if (!product) {
+      console.log('No product available');
       toast({ variant: 'destructive', title: 'Eroare', description: 'Produs indisponibil' });
       return;
     }
 
     // Validate required fields
     if (!product.id || !product.name || product.price === undefined) {
+      console.log('Product validation failed:', { id: product.id, name: product.name, price: product.price });
       toast({ variant: 'destructive', title: 'Eroare', description: 'Datele produsului sunt incomplete' });
       return;
     }
@@ -263,11 +212,14 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
 
     if (currentUserId) {
       try {
+        console.log('Attempting to add to Firestore cart...');
         // Write cart item
         await addToCartFirestore(currentUserId, item);
+        console.log('Successfully added to Firestore cart');
         
       toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
       } catch (e) {
+        console.error('Error adding to Firestore cart:', e);
         toast({
           variant: 'destructive',
           title: 'Eroare la adăugare în coș',
@@ -275,9 +227,13 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
         });
       }
     } else {
-      addToCart(item); // fallback to localStorage
+      console.log('No user ID, adding to localStorage cart...');
+      addToCartLocalStorage(item); // fallback to localStorage
+      console.log('Successfully added to localStorage cart');
       toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
     }
+    
+    console.log('handleAddToCart completed');
   };
 
   const handleToggleFavorite = async () => {
@@ -472,7 +428,26 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
                     <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(q => q+1)}><Plus className="h-4 w-4"/></Button>
                 </div>
             </div>
-            <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock === 0 || product.status !== 'approved'} onClick={handleAddToCart}>
+            
+            {/* Debug info */}
+            <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+              Debug: Stock: {product?.stock}, Status: {product?.status}, Button disabled: {product?.stock === 0 || product?.status !== 'approved'}
+            </div>
+            
+            {/* Test button for toast */}
+            <Button variant="outline" size="sm" onClick={() => toast({ title: 'Test', description: 'Toast is working!' })}>
+              Test Toast
+            </Button>
+            
+            {/* Test button for basic functionality */}
+            <Button variant="outline" size="sm" onClick={() => {
+              console.log('Basic button clicked!');
+              alert('Basic button works!');
+            }}>
+              Test Basic Button
+            </Button>
+            
+            <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleAddToCart}>
               <ShoppingCart className="mr-2 h-5 w-5" /> Adaugă în coșulețul fermecat
             </Button>
             <div className="flex gap-2">
