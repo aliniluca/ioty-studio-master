@@ -41,6 +41,15 @@ export default function SubscribePage() {
         priority
         sizes="100vw"
         className="object-cover"
+        onError={(e) => {
+          // Fallback to gradient background if image fails to load
+          const target = e.target as HTMLImageElement
+          target.style.display = 'none'
+          const parent = target.parentElement
+          if (parent) {
+            parent.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          }
+        }}
       />
       <div className="absolute inset-0 bg-black/50" />
 
