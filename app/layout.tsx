@@ -105,7 +105,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <div className="flex flex-col min-h-screen bg-background">
           <Header />
-          <div className="absolute top-4 right-8 z-50">
+          <div className="hidden md:block absolute top-4 right-8 z-50">
             <Suspense fallback={<div className="w-6 h-6 bg-gray-200 rounded animate-pulse" />}>
               <NotificationBellGate />
             </Suspense>

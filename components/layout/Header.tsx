@@ -178,12 +178,12 @@ export function Header() {
             </DropdownMenu>
           </div>
 
-          <div className="flex-grow flex justify-center px-4 md:px-8">
+          <div className="flex-grow flex justify-center px-2 md:px-8">
             <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl flex items-center gap-2">
               <Input
                 type="search"
                 placeholder="Caută minunății, meșteri sau povești..."
-                className="h-10 w-full rounded-full pl-10 pr-12 text-base border-border focus:border-primary"
+                className="h-10 w-full rounded-full pl-10 pr-10 sm:pr-12 text-base border-border focus:border-primary"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -196,7 +196,7 @@ export function Header() {
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="absolute right-10 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full"
+                className="absolute right-10 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full hidden sm:flex"
                 aria-label="Căutare avansată"
                 onClick={() => router.push(`/?advanced=1`)}
               >
@@ -248,7 +248,7 @@ export function Header() {
               </Button>
             )}
 
-            <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Button variant="ghost" size="icon" asChild className="rounded-full hidden sm:inline-flex">
               <Link href="/profile/wishlist">
                 <Heart className="h-5 w-5" />
                 <span className="sr-only">Favorite</span>
