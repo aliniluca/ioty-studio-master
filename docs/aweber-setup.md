@@ -7,7 +7,12 @@ This guide explains how to set up AWeber integration for newsletter subscription
 Add the following environment variables to your `.env.local` file:
 
 ```bash
-# AWeber Configuration
+# AWeber OAuth Configuration (Recommended for Production)
+AWEBER_CLIENT_ID=your_aweber_client_id_here
+AWEBER_CLIENT_SECRET=your_aweber_client_secret_here
+NEXT_PUBLIC_BASE_URL=https://yourdomain.com
+
+# AWeber Direct API Configuration (Alternative)
 AWEBER_ACCESS_TOKEN=your_aweber_access_token_here
 AWEBER_ACCOUNT_ID=your_aweber_account_id_here
 AWEBER_LIST_ID=your_aweber_list_id_here
@@ -18,22 +23,43 @@ NEWSLETTER_USE_AWEBER=true
 
 ## Getting AWeber Credentials
 
-### 1. Access Token
-1. Log in to your AWeber account
-2. Go to "My Account" → "API Access"
-3. Create a new application or use an existing one
-4. Copy the access token
+### Option 1: OAuth Setup (Recommended for Production)
 
-### 2. Account ID
-1. In your AWeber dashboard, look at the URL
-2. The account ID is the number in the URL (e.g., `https://www.aweber.com/users/123456/`)
-3. Copy the number (123456 in this example)
+1. **Create AWeber App**
+   - Log in to your AWeber account
+   - Go to "My Account" → "API Access"
+   - Click "Create New App"
+   - Fill in the application details:
+     - **App Name**: Your app name
+     - **OAuth Redirect URL**: `https://yourdomain.com/api/auth/aweber/callback`
+   - Copy the **Client ID** and **Client Secret**
 
-### 3. List ID
-1. Go to "Subscribers" → "Lists"
-2. Click on the list you want to use
-3. Look at the URL - the list ID is the number at the end
-4. Copy the list ID
+2. **Set Environment Variables**
+   ```bash
+   AWEBER_CLIENT_ID=your_client_id_here
+   AWEBER_CLIENT_SECRET=your_client_secret_here
+   NEXT_PUBLIC_BASE_URL=https://yourdomain.com
+   AWEBER_LIST_ID=your_list_id_here
+   ```
+
+### Option 2: Direct API Setup (Alternative)
+
+1. **Access Token**
+   - Log in to your AWeber account
+   - Go to "My Account" → "API Access"
+   - Create a new application or use an existing one
+   - Copy the access token
+
+2. **Account ID**
+   - In your AWeber dashboard, look at the URL
+   - The account ID is the number in the URL (e.g., `https://www.aweber.com/users/123456/`)
+   - Copy the number (123456 in this example)
+
+3. **List ID**
+   - Go to "Subscribers" → "Lists"
+   - Click on the list you want to use
+   - Look at the URL - the list ID is the number at the end
+   - Copy the list ID
 
 ## Features
 
@@ -77,6 +103,60 @@ Subscribes a user to the newsletter using AWeber.
   "message": "Successfully subscribed to newsletter"
 }
 ```
+
+### Webhook Endpoints
+
+#### POST /api/webhooks/aweber
+Main webhook endpoint for all AWeber events.
+
+#### POST /api/webhooks/aweber/subscribe
+Specific webhook endpoint for subscription-related events.
+
+**Supported Events:**
+- `subscriber.added` - New subscriber added to list
+- `subscriber.subscribed` - Subscriber confirmed subscription
+- `subscriber.unsubscribed` - Subscriber unsubscribed from list
+
+## Webhook Setup
+
+### 1. Configure AWeber Webhooks
+
+In your AWeber account:
+
+1. Go to "My Account" → "API Access"
+2. Click on your app → "Webhooks"
+3. Add the following callback URLs to your **Callback URL Allow-list**:
+
+```
+https://yourdomain.com/api/webhooks/aweber
+https://yourdomain.com/api/webhooks/aweber/subscribe
+```
+
+### 2. Enable Webhook Events
+
+Select the following events:
+- ✅ `subscriber.added`
+- ✅ `subscriber.subscribed` 
+- ✅ `subscriber.unsubscribed`
+
+### 3. Environment Variables (Optional)
+
+Add webhook security (recommended for production):
+
+```bash
+# Webhook security
+AWEBER_WEBHOOK_SECRET=your_webhook_secret_here
+```
+
+### 4. Webhook Event Handling
+
+The webhooks will automatically log events and can be extended to:
+
+- Send welcome emails
+- Update your database
+- Trigger notifications
+- Sync with CRM systems
+- Update analytics
 
 ## Error Handling
 
