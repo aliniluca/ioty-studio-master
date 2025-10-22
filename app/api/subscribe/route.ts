@@ -6,6 +6,8 @@ const USE_AWEBER = (process.env.NEWSLETTER_USE_AWEBER || 'true').toLowerCase() =
 
 type SubscribeBody = {
   email?: string
+  userType?: 'seller' | 'buyer'
+  tags?: string[]
 }
 
 export async function POST(req: NextRequest) {
@@ -17,10 +19,20 @@ export async function POST(req: NextRequest) {
     }
 
     if (USE_AWEBER) {
-      // Use AWeber for newsletter subscription
+      // Determine which list to use based on user type
+      const listId = body.userType === 'seller' 
+        ? process.env.AWEBER_SELLER_LIST_ID 
+        : process.env.AWEBER_BUYER_LIST_ID
+
+      if (!listId) {
+        return NextResponse.json({ error: 'AWeber list not configured for this user type' }, { status: 500 })
+      }
+
+      // Use AWeber for newsletter subscription with appropriate list
       const result = await subscribeToNewsletter({
         email,
-        tags: ['newsletter', 'direct-subscription']
+        tags: body.tags || ['newsletter', 'direct-subscription'],
+        listId: listId
       })
 
       if (!result.success) {

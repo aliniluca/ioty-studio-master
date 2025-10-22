@@ -12,47 +12,46 @@ export default function SubscribeContent() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isAWeberConnected, setIsAWeberConnected] = useState(false)
+  const [userType, setUserType] = useState<'seller' | 'buyer' | null>(null)
 
-  // Check for OAuth callback results
+  // Check for OAuth callback results (keep for compatibility but not needed)
   useEffect(() => {
     const success = searchParams.get('success')
     const error = searchParams.get('error')
-    const connected = searchParams.get('connected')
 
-    if (success === 'true' && connected === 'aweber') {
+    if (success === 'true') {
       toast({
-        title: 'Conectat cu succes!',
-        description: 'AWeber a fost conectat cu succes. Acum poți folosi newsletter-ul!',
+        title: 'Abonare reușită!',
+        description: 'Te-ai abonat cu succes la newsletter!',
       })
-      setIsAWeberConnected(true)
     } else if (error) {
       toast({
-        title: 'Eroare la conectare',
-        description: `Nu s-a putut conecta la AWeber: ${error}`,
+        title: 'Eroare la abonare',
+        description: `Nu s-a putut finaliza abonarea: ${error}`,
         variant: 'destructive',
       })
     }
   }, [searchParams, toast])
 
-  const handleConnectAWeber = () => {
-    window.location.href = '/api/auth/aweber?action=connect'
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!email) return
+    if (!email || !userType) return
     setIsLoading(true)
     try {
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+          email,
+          userType,
+          tags: [userType, 'newsletter', 'direct-subscription']
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Abonarea a eșuat')
       toast({ title: 'Gata!', description: 'Verifică mail-ul!' })
       setEmail('')
+      setUserType(null)
     } catch (err: any) {
       toast({ title: 'Eroare', description: err.message, variant: 'destructive' })
     } finally {
@@ -90,33 +89,65 @@ export default function SubscribeContent() {
             Primește actualizări despre produse, listări noi și oferte exclusive direct în inbox-ul tău.
           </p>
 
-          {!isAWeberConnected && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 mb-3">
-                Pentru a folosi newsletter-ul, conectează-te mai întâi la AWeber:
-              </p>
-              <Button 
-                onClick={handleConnectAWeber}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Conectează-te la AWeber
-              </Button>
+          {!userType && (
+            <div className="mt-6 space-y-3">
+              <p className="text-sm text-gray-600">Ce tip de utilizator ești?</p>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={() => setUserType('seller')}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Vânzător
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setUserType('buyer')}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Cumpărător
+                </Button>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-6 flex flex-col sm:flex-row gap-3">
-            <Input
-              type="email"
-              placeholder="tu@companie.ro"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-white/95"
-            />
-            <Button type="submit" disabled={isLoading || !isAWeberConnected} className="shrink-0">
-              {isLoading ? 'Se abonează…' : 'Abonează-te'}
-            </Button>
-          </form>
+          {userType && (
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Tip utilizator:</span>
+                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                  userType === 'seller' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {userType === 'seller' ? 'Vânzător' : 'Cumpărător'}
+                </span>
+                <Button
+                  type="button"
+                  onClick={() => setUserType(null)}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Schimbă
+                </Button>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  type="email"
+                  placeholder="tu@companie.ro"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-white/95"
+                />
+                <Button type="submit" disabled={isLoading} className="shrink-0">
+                  {isLoading ? 'Se abonează…' : 'Abonează-te'}
+                </Button>
+              </div>
+            </form>
+          )}
 
           <p className="mt-3 text-xs text-gray-600">
             Ne pasă de datele tale conform politicii noastre de confidențialitate. Te poți dezabona oricând.

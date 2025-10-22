@@ -8,6 +8,7 @@ export interface AWeberSubscriber {
   name?: string;
   customFields?: Record<string, string>;
   tags?: string[];
+  listId?: string;
 }
 
 export interface AWeberResponse {
@@ -46,7 +47,9 @@ class AWeberAPI {
     }
 
     try {
-      const url = `${this.baseUrl}/accounts/${this.accountId}/lists/${this.listId}/subscribers`;
+      // Use custom listId if provided, otherwise use default
+      const targetListId = subscriber.listId || this.listId;
+      const url = `${this.baseUrl}/accounts/${this.accountId}/lists/${targetListId}/subscribers`;
       
       const payload = {
         email: subscriber.email,

@@ -15,7 +15,10 @@ NEXT_PUBLIC_BASE_URL=https://yourdomain.com
 # AWeber Direct API Configuration (Alternative)
 AWEBER_ACCESS_TOKEN=your_aweber_access_token_here
 AWEBER_ACCOUNT_ID=your_aweber_account_id_here
-AWEBER_LIST_ID=your_aweber_list_id_here
+
+# AWeber Lists (Required for dual list setup)
+AWEBER_SELLER_LIST_ID=your_seller_list_id_here
+AWEBER_BUYER_LIST_ID=your_buyer_list_id_here
 
 # Newsletter Provider Toggle
 NEWSLETTER_USE_AWEBER=true
