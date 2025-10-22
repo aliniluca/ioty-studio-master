@@ -1,9 +1,7 @@
 /**
- * AWeber API Integration Utility
- * Handles newsletter subscriptions and user registration
+ * AWeber Client-Side API Integration Utility
+ * Handles newsletter subscriptions and user registration on the client
  */
-
-import { cookies } from 'next/headers'
 
 export interface AWeberSubscriber {
   email: string;
@@ -25,22 +23,14 @@ class AWeberAPI {
   private baseUrl: string;
 
   constructor() {
-    // Try to get tokens from cookies first (OAuth flow)
-    try {
-      const cookieStore = cookies()
-      this.accessToken = cookieStore.get('aweber_access_token')?.value || process.env.AWEBER_ACCESS_TOKEN || '';
-      this.accountId = cookieStore.get('aweber_account_id')?.value || process.env.AWEBER_ACCOUNT_ID || '';
-    } catch (error) {
-      // Fallback to environment variables if cookies are not available
-      this.accessToken = process.env.AWEBER_ACCESS_TOKEN || '';
-      this.accountId = process.env.AWEBER_ACCOUNT_ID || '';
-    }
-    
+    // Use environment variables for client-side usage
+    this.accessToken = process.env.AWEBER_ACCESS_TOKEN || '';
+    this.accountId = process.env.AWEBER_ACCOUNT_ID || '';
     this.listId = process.env.AWEBER_LIST_ID || '';
     this.baseUrl = 'https://api.aweber.com/1.0';
     
     if (!this.accessToken || !this.accountId || !this.listId) {
-      console.warn('AWeber configuration missing. Please set up OAuth or set AWEBER_ACCESS_TOKEN, AWEBER_ACCOUNT_ID, and AWEBER_LIST_ID environment variables.');
+      console.warn('AWeber configuration missing. Please set AWEBER_ACCESS_TOKEN, AWEBER_ACCOUNT_ID, and AWEBER_LIST_ID environment variables.');
     }
   }
 
