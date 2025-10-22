@@ -17,14 +17,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'AWeber list not configured for this user type' }, { status: 500 })
     }
 
-    // Use direct API credentials (no OAuth)
-    const accessToken = process.env.AWEBER_ACCESS_TOKEN
-    const accountId = process.env.AWEBER_ACCOUNT_ID
+    // Get OAuth tokens from cookies
+    const { cookies } = await import('next/headers')
+    const cookieStore = cookies()
+    const accessToken = cookieStore.get('aweber_access_token')?.value
+    const accountId = cookieStore.get('aweber_account_id')?.value
 
     if (!accessToken || !accountId) {
       return NextResponse.json({ 
-        error: 'AWeber credentials not configured. Please add AWEBER_ACCESS_TOKEN and AWEBER_ACCOUNT_ID to your environment variables.' 
-      }, { status: 500 })
+        error: 'AWeber OAuth not completed. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect' 
+      }, { status: 401 })
     }
 
     // Subscribe to AWeber list using direct API
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('Subscribing to AWeber:', { email, userType, listId, accountId })
+    console.log('Using access token:', accessToken.substring(0, 20) + '...')
 
     const response = await fetch(url, {
       method: 'POST',
@@ -49,6 +52,11 @@ export async function POST(req: NextRequest) {
     })
 
     console.log('AWeber API response:', response.status, response.statusText)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('AWeber API error details:', errorText)
+    }
 
     if (response.ok) {
       const data = await response.json()
