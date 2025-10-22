@@ -49,7 +49,10 @@ export default function SignupPage() {
 
   const handleAWeberSubscription = async (user: User, provider?: string) => {
     try {
-      const response = await fetch('/api/aweber/subscribe-new-user', {
+      // Determine user type based on some logic (you can customize this)
+      const userType = 'buyer'; // Default to buyer, you can add logic to determine this
+      
+      const response = await fetch('/api/aweber/register-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,6 +60,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           email: user.email || '',
           name: user.displayName || '',
+          userType: userType,
           customFields: {
             'signup_method': provider || 'email',
             'user_id': user.uid,
