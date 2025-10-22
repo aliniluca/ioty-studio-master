@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { auth, googleProvider } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile, signInWithPopup, User } from 'firebase/auth';
+import { subscribeNewUser } from '@/lib/aweber';
 import { GoogleIcon } from '@/components/shared/GoogleIcon';
 import { Separator } from '@/components/ui/separator';
 
@@ -47,7 +48,32 @@ export default function SignupPage() {
     },
   });
 
- const handleAuthSuccess = (user: User, provider?: string) => {
+  const handleAWeberSubscription = async (user: User, provider?: string) => {
+    try {
+      const result = await subscribeNewUser({
+        email: user.email || '',
+        name: user.displayName || '',
+        customFields: {
+          'signup_method': provider || 'email',
+          'user_id': user.uid,
+          'signup_date': new Date().toISOString()
+        }
+      });
+
+      if (result.success) {
+        console.log('Successfully subscribed user to newsletter:', result.message);
+      } else {
+        console.warn('Failed to subscribe user to newsletter:', result.message);
+      }
+    } catch (error) {
+      console.error('Error subscribing user to newsletter:', error);
+    }
+  };
+
+ const handleAuthSuccess = async (user: User, provider?: string) => {
+    // Subscribe user to newsletter
+    await handleAWeberSubscription(user, provider);
+
     const title = provider === 'google' 
       ? "Bun venit în breaslă!" 
       : "Cont făurit! Verifică-ți emailul.";

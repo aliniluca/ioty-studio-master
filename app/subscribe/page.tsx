@@ -55,9 +55,8 @@ export default function SubscribePage() {
       />
       <div className="absolute inset-0 bg-black/50" />
 
-      {/* Adjusted classes: Removed h-full and added 'min-h-[calc(100vh-64px)]' to the parent div
-          to ensure the flex container stretches to the full viewport height (minus the header/nav height) */}
-      <div className="relative z-10 flex items-center justify-center min-h-[inherit] w-full px-4">
+      {/* Centered layout with proper spacing */}
+      <div className="relative z-10 flex items-center justify-center min-h-[inherit] w-full px-4 py-12">
         <div className="w-full max-w-xl bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-6 md:p-8">
           <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
             Abonează-te la newsletter-ul nostru

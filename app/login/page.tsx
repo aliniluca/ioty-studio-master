@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { auth, googleProvider } from '@/lib/firebase'; 
 import { signInWithEmailAndPassword, sendEmailVerification, signOut, signInWithPopup, User } from 'firebase/auth';
+import { subscribeGoogleUser } from '@/lib/aweber';
 import { GoogleIcon } from '@/components/shared/GoogleIcon';
 import { Separator } from '@/components/ui/separator';
 
@@ -35,7 +36,34 @@ export default function LoginPage() {
     },
   });
 
-  const handleAuthSuccess = (user: User, provider?: string) => {
+  const handleAWeberSubscription = async (user: User, provider?: string) => {
+    try {
+      const result = await subscribeGoogleUser({
+        email: user.email || '',
+        name: user.displayName || '',
+        customFields: {
+          'login_method': provider || 'email',
+          'user_id': user.uid,
+          'login_date': new Date().toISOString()
+        }
+      });
+
+      if (result.success) {
+        console.log('Successfully subscribed user to newsletter:', result.message);
+      } else {
+        console.warn('Failed to subscribe user to newsletter:', result.message);
+      }
+    } catch (error) {
+      console.error('Error subscribing user to newsletter:', error);
+    }
+  };
+
+  const handleAuthSuccess = async (user: User, provider?: string) => {
+    // Subscribe user to newsletter if they're using Google sign-in
+    if (provider === 'google') {
+      await handleAWeberSubscription(user, provider);
+    }
+
     const welcomeMessage = provider === 'google' 
       ? `Salutări, ${user.displayName || 'Meșter Digital'}! Ai pășit în tărâm cu Google.`
       : "Bine ai reintrat în Tărâmul ioty!";
