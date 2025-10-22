@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
     authUrl.searchParams.set('client_id', clientId)
     authUrl.searchParams.set('redirect_uri', redirectUri)
     authUrl.searchParams.set('response_type', 'code')
-    authUrl.searchParams.set('scope', 'read write')
     authUrl.searchParams.set('state', state)
 
     // Store state in a cookie for validation
