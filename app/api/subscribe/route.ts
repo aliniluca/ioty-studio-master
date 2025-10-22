@@ -28,12 +28,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'AWeber list not configured for this user type' }, { status: 500 })
       }
 
-      // Check if we have OAuth credentials but no access token
-      if (process.env.AWEBER_CLIENT_ID && process.env.AWEBER_CLIENT_SECRET && !process.env.AWEBER_ACCESS_TOKEN) {
-        return NextResponse.json({ 
-          error: 'AWeber OAuth not completed. Please complete OAuth setup first or use direct API credentials.' 
-        }, { status: 500 })
-      }
+      // OAuth flow will provide access token via cookies
 
       // Use AWeber for newsletter subscription with appropriate list
       const result = await subscribeToNewsletterServer({
