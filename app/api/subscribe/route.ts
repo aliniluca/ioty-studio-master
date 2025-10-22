@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { subscribeToNewsletter } from '@/lib/aweber'
+import { subscribeToNewsletterServer } from '@/lib/aweber-server'
 
 // Toggle provider with env: NEWSLETTER_USE_AWEBER = 'true' | 'false'
 const USE_AWEBER = (process.env.NEWSLETTER_USE_AWEBER || 'true').toLowerCase() === 'true'
@@ -28,8 +28,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'AWeber list not configured for this user type' }, { status: 500 })
       }
 
+      // Check if we have OAuth credentials but no access token
+      if (process.env.AWEBER_CLIENT_ID && process.env.AWEBER_CLIENT_SECRET && !process.env.AWEBER_ACCESS_TOKEN) {
+        return NextResponse.json({ 
+          error: 'AWeber OAuth not completed. Please complete OAuth setup first or use direct API credentials.' 
+        }, { status: 500 })
+      }
+
       // Use AWeber for newsletter subscription with appropriate list
-      const result = await subscribeToNewsletter({
+      const result = await subscribeToNewsletterServer({
         email,
         tags: body.tags || ['newsletter', 'direct-subscription'],
         listId: listId

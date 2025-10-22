@@ -10,6 +10,7 @@ export interface AWeberSubscriber {
   name?: string;
   customFields?: Record<string, string>;
   tags?: string[];
+  listId?: string;
 }
 
 export interface AWeberResponse {
@@ -36,11 +37,15 @@ class AWeberServerAPI {
       this.accountId = process.env.AWEBER_ACCOUNT_ID || '';
     }
     
-    this.listId = process.env.AWEBER_LIST_ID || '';
+    this.listId = process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID || '';
     this.baseUrl = 'https://api.aweber.com/1.0';
     
-    if (!this.accessToken || !this.accountId || !this.listId) {
-      console.warn('AWeber configuration missing. Please set up OAuth or set AWEBER_ACCESS_TOKEN, AWEBER_ACCOUNT_ID, and AWEBER_LIST_ID environment variables.');
+    if (!this.accessToken || !this.accountId) {
+      console.warn('AWeber configuration missing. Please set up OAuth or set AWEBER_ACCESS_TOKEN and AWEBER_ACCOUNT_ID environment variables.');
+    }
+    
+    if (!this.listId) {
+      console.warn('AWeber list ID missing. Please set AWEBER_SELLER_LIST_ID, AWEBER_BUYER_LIST_ID, or AWEBER_LIST_ID environment variables.');
     }
   }
 
@@ -56,7 +61,9 @@ class AWeberServerAPI {
     }
 
     try {
-      const url = `${this.baseUrl}/accounts/${this.accountId}/lists/${this.listId}/subscribers`;
+      // Use custom listId if provided, otherwise use default
+      const targetListId = subscriber.listId || this.listId;
+      const url = `${this.baseUrl}/accounts/${this.accountId}/lists/${targetListId}/subscribers`;
       
       const payload = {
         email: subscriber.email,

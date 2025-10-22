@@ -7,12 +7,12 @@ This guide explains how to set up AWeber integration for newsletter subscription
 Add the following environment variables to your `.env.local` file:
 
 ```bash
-# AWeber OAuth Configuration (Recommended for Production)
+# AWeber OAuth Configuration (For OAuth flow)
 AWEBER_CLIENT_ID=your_aweber_client_id_here
 AWEBER_CLIENT_SECRET=your_aweber_client_secret_here
 NEXT_PUBLIC_BASE_URL=https://yourdomain.com
 
-# AWeber Direct API Configuration (Alternative)
+# AWeber Direct API Configuration (For direct API usage)
 AWEBER_ACCESS_TOKEN=your_aweber_access_token_here
 AWEBER_ACCOUNT_ID=your_aweber_account_id_here
 
