@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
     const accessToken = cookieStore.get('aweber_access_token')?.value
     const accountId = cookieStore.get('aweber_account_id')?.value
 
+    console.log('OAuth token check:', {
+      hasAccessToken: !!accessToken,
+      hasAccountId: !!accountId,
+      tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
+      accountId: accountId
+    })
+
     if (!accessToken || !accountId) {
       return NextResponse.json({ 
         error: 'AWeber OAuth not completed. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect' 
@@ -39,8 +46,25 @@ export async function POST(req: NextRequest) {
       tags: tags || ['newsletter', 'direct-subscription']
     }
 
+    // First, test if the token is valid by getting account info
+    console.log('Testing token validity...')
+    const testResponse = await fetch('https://api.aweber.com/1.0/accounts', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!testResponse.ok) {
+      const testError = await testResponse.text()
+      console.error('Token validation failed:', testResponse.status, testError)
+      return NextResponse.json({ 
+        error: `Access token is invalid or expired. Status: ${testResponse.status}` 
+      }, { status: 401 })
+    }
+
+    console.log('Token is valid, proceeding with subscription...')
     console.log('Subscribing to AWeber:', { email, userType, listId, accountId })
-    console.log('Using access token:', accessToken.substring(0, 20) + '...')
 
     const response = await fetch(url, {
       method: 'POST',
