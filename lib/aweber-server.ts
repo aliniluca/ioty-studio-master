@@ -72,7 +72,7 @@ class AWeberServerAPI {
         tags: subscriber.tags || []
       };
 
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
@@ -80,6 +80,30 @@ class AWeberServerAPI {
         },
         body: JSON.stringify(payload)
       });
+
+      // If 401 Unauthorized, try to refresh the token
+      if (response.status === 401) {
+        console.log('Access token expired, attempting to refresh...')
+        const { refreshAWeberToken } = await import('./aweber-token-refresh')
+        const refreshResult = await refreshAWeberToken()
+        
+        if (refreshResult.access_token) {
+          // Retry with new token
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${refreshResult.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          return {
+            success: false,
+            message: `Token refresh failed: ${refreshResult.error}`
+          };
+        }
+      }
 
       if (response.ok) {
         const data = await response.json();

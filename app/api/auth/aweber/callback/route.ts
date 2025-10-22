@@ -20,18 +20,24 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Exchange authorization code for access token
+    // Exchange authorization code for access token using Basic Authentication
+    const clientId = process.env.AWEBER_CLIENT_ID!
+    const clientSecret = process.env.AWEBER_CLIENT_SECRET!
+    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/aweber/callback`
+    
+    // Create Basic Auth header as recommended by AWeber
+    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    
     const tokenResponse = await fetch('https://auth.aweber.com/oauth2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${authHeader}`,
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
-        client_id: process.env.AWEBER_CLIENT_ID!,
-        client_secret: process.env.AWEBER_CLIENT_SECRET!,
-        redirect_uri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/aweber/callback`,
+        redirect_uri: redirectUri,
       }),
     })
 
