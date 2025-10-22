@@ -38,7 +38,7 @@ export default function SubscribeContent() {
     if (!email || !userType) return
     setIsLoading(true)
     try {
-      const res = await fetch('/api/aweber/simple-subscribe', {
+      const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
