@@ -161,7 +161,15 @@ class AWeberServerAPI {
       // Use custom listId if provided, otherwise use default
       const targetListId = subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID;
       
+      console.log('List ID configuration:', {
+        subscriberListId: subscriber.listId,
+        envSellerListId: process.env.AWEBER_SELLER_LIST_ID,
+        envListId: process.env.AWEBER_LIST_ID,
+        finalListId: targetListId
+      });
+      
       if (!targetListId) {
+        console.error('No AWeber list ID configured');
         return {
           success: false,
           message: 'AWeber list ID not configured'
@@ -212,14 +220,24 @@ class AWeberServerAPI {
         console.error('AWeber API error details:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
+          url,
+          accountId,
+          listId: targetListId,
+          tokenPreview: accessToken.substring(0, 10) + '...'
         });
         
         // Handle specific error cases
         if (response.status === 401) {
+          console.error('401 Error - Token might be invalid for this specific endpoint:', {
+            url,
+            accountId,
+            listId: targetListId,
+            errorData
+          });
           return {
             success: false,
-            message: 'AWeber authentication failed. Please re-authorize your AWeber connection.'
+            message: `AWeber authentication failed. Please re-authorize your AWeber connection. (Status: ${response.status}, URL: ${url})`
           };
         } else if (response.status === 400) {
           return {
