@@ -151,18 +151,16 @@ class AWeberServerAPI {
    */
   async subscribeToNewsletter(subscriber: AWeberSubscriber): Promise<AWeberResponse> {
     try {
-      // Get valid tokens (skip validation for now to debug the issue)
-      const tokenData = await this.getValidAccessToken(false);
+      // Get tokens directly without validation (since validation is failing)
+      const { accessToken, accountId } = await this.getTokens();
       
-      if (!tokenData) {
-        console.error('AWeber OAuth not completed or token refresh failed');
+      if (!accessToken || !accountId) {
+        console.error('AWeber OAuth not completed');
         return {
           success: false,
-          message: 'AWeber OAuth not completed or token expired. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect'
+          message: 'AWeber OAuth not completed. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect'
         };
       }
-
-      const { accessToken, accountId } = tokenData;
 
       // Use custom listId if provided, otherwise use default
       const targetListId = subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID;
@@ -207,6 +205,27 @@ class AWeberServerAPI {
         },
         body: JSON.stringify(payload)
       });
+
+      // If 401, try to refresh the token and retry
+      if (response.status === 401) {
+        console.log('Token expired, attempting refresh...');
+        const { refreshAWeberToken } = await import('./aweber-token-refresh');
+        const refreshResult = await refreshAWeberToken();
+        
+        if (refreshResult.access_token) {
+          console.log('Token refreshed successfully, retrying subscription...');
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${refreshResult.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          console.error('Token refresh failed:', refreshResult.error);
+        }
+      }
 
       console.log('AWeber API response:', {
         status: response.status,
