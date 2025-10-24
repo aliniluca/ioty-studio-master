@@ -123,10 +123,16 @@ class AWeberServerAPI {
       const accessToken = cookieStore.get('aweber_access_token')?.value || process.env.AWEBER_ACCESS_TOKEN || '';
       const accountId = cookieStore.get('aweber_account_id')?.value || process.env.AWEBER_ACCOUNT_ID || '';
       
-      console.log('AWeber tokens from cookies:', {
+      console.log('Reading AWeber tokens from cookies:', {
         hasAccessToken: !!accessToken,
         hasAccountId: !!accountId,
-        tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none'
+        tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
+        accountId,
+        cookieKeys: cookieStore.getAll().map(c => c.name),
+        envFallback: {
+          hasEnvAccessToken: !!process.env.AWEBER_ACCESS_TOKEN,
+          hasEnvAccountId: !!process.env.AWEBER_ACCOUNT_ID
+        }
       });
       
       return { accessToken, accountId };

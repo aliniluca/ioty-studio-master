@@ -83,11 +83,20 @@ export async function GET(req: NextRequest) {
     }
 
     // Store the access token and account ID in secure cookies
+    console.log('Storing AWeber tokens in cookies:', {
+      hasAccessToken: !!tokenData.access_token,
+      hasAccountId: !!accountId,
+      hasRefreshToken: !!tokenData.refresh_token,
+      accountId,
+      tokenPreview: tokenData.access_token ? tokenData.access_token.substring(0, 10) + '...' : 'none'
+    });
+
     cookieStore.set('aweber_access_token', tokenData.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/'
     })
 
     if (accountId) {
@@ -96,6 +105,7 @@ export async function GET(req: NextRequest) {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/'
       })
     }
 
@@ -106,6 +116,7 @@ export async function GET(req: NextRequest) {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 365, // 1 year
+        path: '/'
       })
     }
 
