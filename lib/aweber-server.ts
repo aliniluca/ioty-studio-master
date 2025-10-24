@@ -26,10 +26,74 @@ class AWeberServerAPI {
     this.baseUrl = 'https://api.aweber.com/1.0';
   }
 
+  /**
+   * Check if AWeber OAuth is properly configured
+   */
+  private async isOAuthConfigured(): Promise<boolean> {
+    const { accessToken, accountId } = await this.getTokens();
+    return !!(accessToken && accountId);
+  }
+
+  /**
+   * Clear OAuth tokens from cookies
+   */
+  private async clearOAuthTokens(): Promise<void> {
+    try {
+      const cookieStore = await cookies()
+      cookieStore.delete('aweber_access_token')
+      cookieStore.delete('aweber_account_id')
+      cookieStore.delete('aweber_refresh_token')
+      console.log('AWeber OAuth tokens cleared')
+    } catch (error) {
+      console.error('Error clearing OAuth tokens:', error)
+    }
+  }
+
+  /**
+   * Get a valid access token, refreshing if necessary
+   */
+  private async getValidAccessToken(): Promise<{ accessToken: string; accountId: string } | null> {
+    const { accessToken, accountId } = await this.getTokens();
+    
+    if (!accessToken || !accountId) {
+      return null;
+    }
+
+    // Test the token by making a simple API call
+    try {
+      const testResponse = await fetch(`${this.baseUrl}/accounts/${accountId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (testResponse.status === 401) {
+        console.log('Access token is invalid, attempting refresh...');
+        const { refreshAWeberToken } = await import('./aweber-token-refresh');
+        const refreshResult = await refreshAWeberToken();
+        
+        if (refreshResult.access_token) {
+          return { accessToken: refreshResult.access_token, accountId };
+        } else {
+          console.error('Token refresh failed:', refreshResult.error);
+          // Clear invalid tokens
+          await this.clearOAuthTokens();
+          return null;
+        }
+      }
+
+      return { accessToken, accountId };
+    } catch (error) {
+      console.error('Error validating access token:', error);
+      return null;
+    }
+  }
+
   private async getTokens() {
     // Try to get tokens from cookies first (OAuth flow)
     try {
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       const accessToken = cookieStore.get('aweber_access_token')?.value || process.env.AWEBER_ACCESS_TOKEN || '';
       const accountId = cookieStore.get('aweber_account_id')?.value || process.env.AWEBER_ACCOUNT_ID || '';
       
@@ -55,15 +119,18 @@ class AWeberServerAPI {
    */
   async subscribeToNewsletter(subscriber: AWeberSubscriber): Promise<AWeberResponse> {
     try {
-      // Get tokens dynamically
-      const { accessToken, accountId } = await this.getTokens();
+      // Get valid tokens (with refresh if necessary)
+      const tokenData = await this.getValidAccessToken();
       
-      if (!accessToken || !accountId) {
+      if (!tokenData) {
+        console.error('AWeber OAuth not completed or token refresh failed');
         return {
           success: false,
-          message: 'AWeber OAuth not completed. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect'
+          message: 'AWeber OAuth not completed or token expired. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect'
         };
       }
+
+      const { accessToken, accountId } = tokenData;
 
       // Use custom listId if provided, otherwise use default
       const targetListId = subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID;
@@ -102,30 +169,6 @@ class AWeberServerAPI {
 
       console.log('AWeber API response:', response.status, response.statusText);
 
-      // If 401 Unauthorized, try to refresh the token
-      if (response.status === 401) {
-        console.log('Access token expired, attempting to refresh...')
-        const { refreshAWeberToken } = await import('./aweber-token-refresh')
-        const refreshResult = await refreshAWeberToken()
-        
-        if (refreshResult.access_token) {
-          // Retry with new token
-          response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${refreshResult.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          return {
-            success: false,
-            message: `Token refresh failed: ${refreshResult.error}`
-          };
-        }
-      }
-
       if (response.ok) {
         const data = await response.json();
         return {
@@ -135,11 +178,29 @@ class AWeberServerAPI {
         };
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('AWeber API error details:', errorData);
-        return {
-          success: false,
-          message: errorData.error?.message || `AWeber API error: ${response.status}`
-        };
+        console.error('AWeber API error details:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Handle specific error cases
+        if (response.status === 401) {
+          return {
+            success: false,
+            message: 'AWeber authentication failed. Please re-authorize your AWeber connection.'
+          };
+        } else if (response.status === 400) {
+          return {
+            success: false,
+            message: errorData.error?.message || 'Invalid subscription data provided to AWeber.'
+          };
+        } else {
+          return {
+            success: false,
+            message: errorData.error?.message || `AWeber API error: ${response.status} - ${response.statusText}`
+          };
+        }
       }
     } catch (error: any) {
       console.error('AWeber subscription error:', error);

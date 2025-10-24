@@ -38,7 +38,12 @@ export async function refreshAWeberToken(): Promise<{ access_token?: string; err
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      return { error: `Token refresh failed: ${errorData.error || response.status}` }
+      console.error('Token refresh failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      })
+      return { error: `Token refresh failed: ${errorData.error || response.status} - ${errorData.error_description || response.statusText}` }
     }
 
     const tokenData = await response.json()

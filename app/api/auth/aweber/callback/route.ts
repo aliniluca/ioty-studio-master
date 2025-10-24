@@ -19,6 +19,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_code`)
   }
 
+  // Validate state parameter for security
+  const cookieStore = cookies()
+  const storedState = cookieStore.get('aweber_oauth_state')?.value
+  if (!state || !storedState || state !== storedState) {
+    console.error('Invalid or missing state parameter')
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=invalid_state`)
+  }
+
   try {
     // Exchange authorization code for access token using Basic Authentication
     const clientId = process.env.AWEBER_CLIENT_ID!
@@ -75,7 +83,6 @@ export async function GET(req: NextRequest) {
     }
 
     // Store the access token and account ID in secure cookies
-    const cookieStore = cookies()
     cookieStore.set('aweber_access_token', tokenData.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -102,6 +109,9 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // Clean up the OAuth state cookie
+    cookieStore.delete('aweber_oauth_state')
+    
     console.log('AWeber OAuth successful, tokens stored')
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?success=true&connected=aweber`)
 
