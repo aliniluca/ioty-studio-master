@@ -14,8 +14,13 @@ export async function refreshAWeberToken(): Promise<{ access_token?: string; err
 
     // Get refresh token from cookies
     const { cookies } = await import('next/headers')
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const refreshToken = cookieStore.get('aweber_refresh_token')?.value
+
+    console.log('Attempting token refresh...', {
+      hasRefreshToken: !!refreshToken,
+      refreshTokenPreview: refreshToken ? refreshToken.substring(0, 10) + '...' : 'none'
+    });
 
     if (!refreshToken) {
       return { error: 'No refresh token available' }

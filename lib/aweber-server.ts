@@ -61,11 +61,21 @@ class AWeberServerAPI {
 
     // Test the token by making a simple API call
     try {
+      console.log('Testing AWeber access token validity...', {
+        accountId,
+        tokenPreview: accessToken.substring(0, 10) + '...'
+      });
+      
       const testResponse = await fetch(`${this.baseUrl}/accounts/${accountId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+      });
+
+      console.log('Token validation response:', {
+        status: testResponse.status,
+        statusText: testResponse.statusText
       });
 
       if (testResponse.status === 401) {
@@ -74,6 +84,7 @@ class AWeberServerAPI {
         const refreshResult = await refreshAWeberToken();
         
         if (refreshResult.access_token) {
+          console.log('Token refresh successful');
           return { accessToken: refreshResult.access_token, accountId };
         } else {
           console.error('Token refresh failed:', refreshResult.error);
@@ -83,6 +94,14 @@ class AWeberServerAPI {
         }
       }
 
+      if (!testResponse.ok) {
+        console.error('Token validation failed with status:', testResponse.status);
+        const errorText = await testResponse.text().catch(() => 'Unknown error');
+        console.error('Error response:', errorText);
+        return null;
+      }
+
+      console.log('Token validation successful');
       return { accessToken, accountId };
     } catch (error) {
       console.error('Error validating access token:', error);
