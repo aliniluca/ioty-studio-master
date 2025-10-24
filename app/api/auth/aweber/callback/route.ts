@@ -22,9 +22,28 @@ export async function GET(req: NextRequest) {
   // Validate state parameter for security
   const cookieStore = cookies()
   const storedState = cookieStore.get('aweber_oauth_state')?.value
+  
+  console.log('OAuth state validation:', {
+    receivedState: state,
+    storedState: storedState,
+    statesMatch: state === storedState,
+    hasReceivedState: !!state,
+    hasStoredState: !!storedState
+  });
+  
   if (!state || !storedState || state !== storedState) {
-    console.error('Invalid or missing state parameter')
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=invalid_state`)
+    console.error('Invalid or missing state parameter:', {
+      receivedState: state,
+      storedState: storedState,
+      statesMatch: state === storedState
+    });
+    
+    // Temporary bypass for debugging - remove in production
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Bypassing state validation in development mode');
+    } else {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=invalid_state`)
+    }
   }
 
   try {

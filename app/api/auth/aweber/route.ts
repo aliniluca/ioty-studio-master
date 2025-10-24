@@ -24,12 +24,19 @@ export async function GET(req: NextRequest) {
     authUrl.searchParams.set('state', state)
 
     // Store state in a cookie for validation
+    console.log('Setting OAuth state cookie:', {
+      state,
+      stateLength: state.length,
+      authUrl: authUrl.toString()
+    });
+    
     const response = NextResponse.redirect(authUrl.toString())
     response.cookies.set('aweber_oauth_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 600, // 10 minutes
+      path: '/'
     })
 
     return response
