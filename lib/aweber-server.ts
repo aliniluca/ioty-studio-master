@@ -50,13 +50,20 @@ class AWeberServerAPI {
   }
 
   /**
-   * Get a valid access token, refreshing if necessary
+   * Get a valid access token, with optional validation
    */
-  private async getValidAccessToken(): Promise<{ accessToken: string; accountId: string } | null> {
+  private async getValidAccessToken(validateToken: boolean = true): Promise<{ accessToken: string; accountId: string } | null> {
     const { accessToken, accountId } = await this.getTokens();
     
     if (!accessToken || !accountId) {
+      console.log('No tokens available');
       return null;
+    }
+
+    // Skip validation if requested (for debugging)
+    if (!validateToken) {
+      console.log('Skipping token validation, using tokens directly');
+      return { accessToken, accountId };
     }
 
     // Test the token by making a simple API call
@@ -138,8 +145,8 @@ class AWeberServerAPI {
    */
   async subscribeToNewsletter(subscriber: AWeberSubscriber): Promise<AWeberResponse> {
     try {
-      // Get valid tokens (with refresh if necessary)
-      const tokenData = await this.getValidAccessToken();
+      // Get valid tokens (skip validation for now to debug the issue)
+      const tokenData = await this.getValidAccessToken(false);
       
       if (!tokenData) {
         console.error('AWeber OAuth not completed or token refresh failed');
@@ -174,7 +181,8 @@ class AWeberServerAPI {
         email: subscriber.email, 
         listId: targetListId, 
         accountId,
-        tokenPreview: accessToken.substring(0, 20) + '...'
+        tokenPreview: accessToken.substring(0, 20) + '...',
+        url
       });
 
       let response = await fetch(url, {
@@ -186,7 +194,11 @@ class AWeberServerAPI {
         body: JSON.stringify(payload)
       });
 
-      console.log('AWeber API response:', response.status, response.statusText);
+      console.log('AWeber API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url
+      });
 
       if (response.ok) {
         const data = await response.json();
