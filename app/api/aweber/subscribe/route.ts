@@ -28,6 +28,16 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('AWeber subscription API error:', error)
-    return NextResponse.json({ error: 'Failed to subscribe' }, { status: 500 })
+    
+    // Handle JSON parsing errors specifically
+    if (error.message && error.message.includes('JSON')) {
+      return NextResponse.json({ 
+        error: 'Invalid response from AWeber. Please try again.' 
+      }, { status: 500 });
+    }
+    
+    return NextResponse.json({ 
+      error: error.message || 'Failed to subscribe' 
+    }, { status: 500 });
   }
 }

@@ -70,6 +70,17 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 })
+    console.error('Newsletter subscription error:', err);
+    
+    // Handle JSON parsing errors specifically
+    if (err.message && err.message.includes('JSON')) {
+      return NextResponse.json({ 
+        error: 'Invalid response from newsletter service. Please try again.' 
+      }, { status: 500 });
+    }
+    
+    return NextResponse.json({ 
+      error: err.message || 'Unexpected error' 
+    }, { status: 500 });
   }
 }

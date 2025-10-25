@@ -108,6 +108,23 @@ class AWeberServerAPI {
         return null;
       }
 
+      // Check if response has content before parsing JSON
+      const responseText = await testResponse.text();
+      if (!responseText.trim()) {
+        console.error('Token validation returned empty response');
+        return null;
+      }
+
+      try {
+        JSON.parse(responseText);
+      } catch (parseError: any) {
+        console.error('Token validation returned invalid JSON:', {
+          responseText: responseText.substring(0, 200),
+          parseError: parseError.message
+        });
+        return null;
+      }
+
       console.log('Token validation successful');
       return { accessToken, accountId };
     } catch (error) {
@@ -163,7 +180,16 @@ class AWeberServerAPI {
       }
 
       // Use custom listId if provided, otherwise use default
-      const targetListId = subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID;
+      let targetListId = subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID;
+      
+      // Fix list ID format - remove 'awlist' prefix if present
+      if (targetListId && targetListId.startsWith('awlist')) {
+        targetListId = targetListId.replace('awlist', '');
+        console.log('Fixed list ID format:', {
+          original: subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID,
+          fixed: targetListId
+        });
+      }
       
       console.log('List ID configuration:', {
         subscriberListId: subscriber.listId,
@@ -234,7 +260,30 @@ class AWeberServerAPI {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        // Check if response has content before parsing JSON
+        const responseText = await response.text();
+        if (!responseText.trim()) {
+          console.error('AWeber API returned empty response');
+          return {
+            success: false,
+            message: 'AWeber API returned empty response'
+          };
+        }
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError: any) {
+          console.error('AWeber API returned invalid JSON:', {
+            responseText: responseText.substring(0, 200),
+            parseError: parseError.message
+          });
+          return {
+            success: false,
+            message: 'AWeber API returned invalid JSON response'
+          };
+        }
+        
         return {
           success: true,
           message: 'Successfully subscribed to newsletter',
