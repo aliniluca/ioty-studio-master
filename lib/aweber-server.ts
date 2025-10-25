@@ -220,7 +220,8 @@ class AWeberServerAPI {
         listId: targetListId, 
         accountId,
         tokenPreview: accessToken.substring(0, 20) + '...',
-        url
+        url,
+        payload
       });
 
       let response = await fetch(url, {
@@ -256,17 +257,33 @@ class AWeberServerAPI {
       console.log('AWeber API response:', {
         status: response.status,
         statusText: response.statusText,
-        url
+        url,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (response.ok) {
         // Check if response has content before parsing JSON
         const responseText = await response.text();
+        console.log('AWeber API response content:', {
+          hasContent: !!responseText,
+          contentLength: responseText.length,
+          contentPreview: responseText.substring(0, 100),
+          status: response.status,
+          statusText: response.statusText
+        });
+        
         if (!responseText.trim()) {
-          console.error('AWeber API returned empty response');
+          console.error('AWeber API returned empty response:', {
+            status: response.status,
+            statusText: response.statusText,
+            url,
+            headers: Object.fromEntries(response.headers.entries()),
+            accountId,
+            listId: targetListId
+          });
           return {
             success: false,
-            message: 'AWeber API returned empty response'
+            message: `AWeber API returned empty response (Status: ${response.status})`
           };
         }
         
