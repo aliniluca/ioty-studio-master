@@ -272,19 +272,28 @@ class AWeberServerAPI {
           statusText: response.statusText
         });
         
+        // Handle successful responses (201 Created) that might be empty
         if (!responseText.trim()) {
-          console.error('AWeber API returned empty response:', {
-            status: response.status,
-            statusText: response.statusText,
-            url,
-            headers: Object.fromEntries(response.headers.entries()),
-            accountId,
-            listId: targetListId
-          });
-          return {
-            success: false,
-            message: `AWeber API returned empty response (Status: ${response.status})`
-          };
+          if (response.status === 201) {
+            console.log('AWeber API returned empty response for 201 Created - this is normal');
+            return {
+              success: true,
+              message: 'Successfully subscribed to newsletter (Created)'
+            };
+          } else {
+            console.error('AWeber API returned empty response:', {
+              status: response.status,
+              statusText: response.statusText,
+              url,
+              headers: Object.fromEntries(response.headers.entries()),
+              accountId,
+              listId: targetListId
+            });
+            return {
+              success: false,
+              message: `AWeber API returned empty response (Status: ${response.status})`
+            };
+          }
         }
         
         let data;
