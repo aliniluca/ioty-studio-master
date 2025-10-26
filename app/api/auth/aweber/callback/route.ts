@@ -23,13 +23,6 @@ export async function GET(req: NextRequest) {
   const cookieStore = cookies()
   const storedState = cookieStore.get('aweber_oauth_state')?.value
   
-  console.log('OAuth state validation:', {
-    receivedState: state,
-    storedState: storedState,
-    statesMatch: state === storedState,
-    hasReceivedState: !!state,
-    hasStoredState: !!storedState
-  });
   
   if (!state || !storedState || state !== storedState) {
     console.error('Invalid or missing state parameter:', {
@@ -102,13 +95,6 @@ export async function GET(req: NextRequest) {
     }
 
     // Store the access token and account ID in secure cookies
-    console.log('Storing AWeber tokens in cookies:', {
-      hasAccessToken: !!tokenData.access_token,
-      hasAccountId: !!accountId,
-      hasRefreshToken: !!tokenData.refresh_token,
-      accountId,
-      tokenPreview: tokenData.access_token ? tokenData.access_token.substring(0, 10) + '...' : 'none'
-    });
 
     cookieStore.set('aweber_access_token', tokenData.access_token, {
       httpOnly: true,
@@ -142,7 +128,6 @@ export async function GET(req: NextRequest) {
     // Clean up the OAuth state cookie
     cookieStore.delete('aweber_oauth_state')
     
-    console.log('AWeber OAuth successful, tokens stored')
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?success=true&connected=aweber`)
 
   } catch (error) {

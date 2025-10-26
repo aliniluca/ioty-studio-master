@@ -37,34 +37,25 @@ export function Header() {
   const [hasShop, setHasShop] = useState(false);
   const { cartCount, cartItems, loading } = useCart();
 
-  console.log('Header - Cart count:', cartCount, 'Cart items:', cartItems, 'Loading:', loading);
 
   useEffect(() => {
-    console.log('Header: Setting up auth listener');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('Header: Auth state changed, user:', user ? user.uid : 'null');
       if (user) {
         setCurrentUser(user);
         setIsAuthenticated(true);
-        console.log('Header: User authenticated:', user.uid);
         
         // Check if user has a shop
         try {
-          console.log('Header: Checking shop for user ID:', user.uid);
           
           // Use the same logic as AccountDashboard - look for shop document with user UID as document ID
           const shopDoc = await getDoc(doc(db, 'shops', user.uid));
           const hasShopResult = shopDoc.exists();
           
-          console.log('Header: Shop exists:', hasShopResult);
           
           setHasShop(hasShopResult);
           
           if (hasShopResult) {
-            console.log('Header: User has a shop detected');
-            console.log('Header: Shop data:', shopDoc.data());
           } else {
-            console.log('Header: No shop found for user');
           }
         } catch (error) {
           setHasShop(false);
@@ -73,12 +64,10 @@ export function Header() {
         setCurrentUser(null);
         setIsAuthenticated(false);
         setHasShop(false);
-        console.log('Header: No user authenticated');
       }
     });
 
     return () => {
-      console.log('Header: Cleaning up auth listener');
       unsubscribe();
     };
   }, [pathname]); // Added pathname to dependency array

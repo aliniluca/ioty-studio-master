@@ -95,7 +95,6 @@ export default function RootLayout({
             __html: `
               // Immediate fix for simulateUserLogout error
               window.simulateUserLogout = function() {
-                console.log('simulateUserLogout called - this is a development function');
                 // This function is only for development purposes
               };
             `,
@@ -124,7 +123,6 @@ export default function RootLayout({
               // Fix for simulateUserLogout error (development only)
               if (typeof window !== 'undefined') {
                 window.simulateUserLogout = function() {
-                  console.log('simulateUserLogout called - this is a development function');
                   // This function is only for development purposes
                 };
               }
@@ -142,8 +140,6 @@ export default function RootLayout({
                   setTimeout(function() {
                     const perfData = performance.getEntriesByType('navigation')[0];
                     if (perfData) {
-                      console.log('Page Load Time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
-                      console.log('DOM Content Loaded:', perfData.domContentLoadedEventEnd - perfData.domContentLoadedEventStart, 'ms');
                     }
                   }, 0);
                 });
@@ -153,7 +149,6 @@ export default function RootLayout({
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                    console.log('ServiceWorker registration failed: ', err);
                   });
                 });
               }

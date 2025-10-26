@@ -80,11 +80,9 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
           setLoading(false);
           return;
         }
-        console.log("Fetching product:", params.id);
         const docRef = doc(db, "listings", params.id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          console.log("Product data:", docSnap.data());
           const productData = docSnap.data() as ProductDetails;
           setProduct(productData);
           
@@ -105,7 +103,6 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
             }
           }
         } else {
-          console.log("Product not found");
           setProduct(null);
         }
       } catch (error) {
@@ -178,20 +175,14 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
 
   const handleAddToCart = async () => {
     alert('Button clicked! Function called!'); // Test alert
-    console.log('handleAddToCart called!');
-    console.log('Product:', product);
-    console.log('Quantity:', quantity);
-    console.log('Current user ID:', currentUserId);
     
     if (!product) {
-      console.log('No product available');
       toast({ variant: 'destructive', title: 'Eroare', description: 'Produs indisponibil' });
       return;
     }
 
     // Validate required fields
     if (!product.id || !product.name || product.price === undefined) {
-      console.log('Product validation failed:', { id: product.id, name: product.name, price: product.price });
       toast({ variant: 'destructive', title: 'Eroare', description: 'Datele produsului sunt incomplete' });
       return;
     }
@@ -207,19 +198,14 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
       dataAiHint: product.dataAiHint,
     };
 
-    console.log('Adding item to cart:', item);
-    console.log('Current user ID:', currentUserId);
 
     if (currentUserId) {
       try {
-        console.log('Attempting to add to Firestore cart...');
         // Write cart item
         const success = await addToCartFirestore(currentUserId, item);
         if (success) {
-          console.log('Successfully added to Firestore cart');
           toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
         } else {
-          console.log('Firestore failed, using localStorage fallback');
           toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău (mod local).' });
         }
       } catch (e) {
@@ -229,13 +215,10 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
         toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău (mod local).' });
       }
     } else {
-      console.log('No user ID, adding to localStorage cart...');
       addToCartLocalStorage(item); // fallback to localStorage
-      console.log('Successfully added to localStorage cart');
       toast({ title: 'Adăugat în coș!', description: 'Produsul a fost adăugat în coșul tău.' });
     }
     
-    console.log('handleAddToCart completed');
   };
 
   const handleToggleFavorite = async () => {
@@ -443,7 +426,6 @@ export default function ProductDetailClient({ params }: ProductDetailClientProps
             
             {/* Test button for basic functionality */}
             <Button variant="outline" size="sm" onClick={() => {
-              console.log('Basic button clicked!');
               alert('Basic button works!');
             }}>
               Test Basic Button

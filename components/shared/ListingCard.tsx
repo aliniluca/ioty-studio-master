@@ -56,16 +56,13 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
 
     if (userId) {
       try {
-        console.log('Attempting to add to cart for user:', userId);
         const success = await addToCartFirestore(userId, item);
         if (success) {
-          console.log('Successfully added to cart');
           toast({
             title: "În coșuleț a sărit!",
             description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat.`,
           });
         } else {
-          console.log('Firestore failed, using localStorage fallback');
           toast({
             title: "În coșuleț a sărit!",
             description: `Minunăția "${listing.name}" e acum în coșulețul tău fermecat (mod local).`,

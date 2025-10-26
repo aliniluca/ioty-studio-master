@@ -43,7 +43,6 @@ class AWeberServerAPI {
       cookieStore.delete('aweber_access_token')
       cookieStore.delete('aweber_account_id')
       cookieStore.delete('aweber_refresh_token')
-      console.log('AWeber OAuth tokens cleared')
     } catch (error) {
       console.error('Error clearing OAuth tokens:', error)
     }
@@ -56,22 +55,16 @@ class AWeberServerAPI {
     const { accessToken, accountId } = await this.getTokens();
     
     if (!accessToken || !accountId) {
-      console.log('No tokens available');
       return null;
     }
 
     // Skip validation if requested (for debugging)
     if (!validateToken) {
-      console.log('Skipping token validation, using tokens directly');
       return { accessToken, accountId };
     }
 
     // Test the token by making a simple API call
     try {
-      console.log('Testing AWeber access token validity...', {
-        accountId,
-        tokenPreview: accessToken.substring(0, 10) + '...'
-      });
       
       const testResponse = await fetch(`${this.baseUrl}/accounts/${accountId}`, {
         headers: {
@@ -80,18 +73,12 @@ class AWeberServerAPI {
         },
       });
 
-      console.log('Token validation response:', {
-        status: testResponse.status,
-        statusText: testResponse.statusText
-      });
 
       if (testResponse.status === 401) {
-        console.log('Access token is invalid, attempting refresh...');
         const { refreshAWeberToken } = await import('./aweber-token-refresh');
         const refreshResult = await refreshAWeberToken();
         
         if (refreshResult.access_token) {
-          console.log('Token refresh successful');
           return { accessToken: refreshResult.access_token, accountId };
         } else {
           console.error('Token refresh failed:', refreshResult.error);
@@ -125,7 +112,6 @@ class AWeberServerAPI {
         return null;
       }
 
-      console.log('Token validation successful');
       return { accessToken, accountId };
     } catch (error) {
       console.error('Error validating access token:', error);
@@ -140,17 +126,6 @@ class AWeberServerAPI {
       const accessToken = cookieStore.get('aweber_access_token')?.value || process.env.AWEBER_ACCESS_TOKEN || '';
       const accountId = cookieStore.get('aweber_account_id')?.value || process.env.AWEBER_ACCOUNT_ID || '';
       
-      console.log('Reading AWeber tokens from cookies:', {
-        hasAccessToken: !!accessToken,
-        hasAccountId: !!accountId,
-        tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
-        accountId,
-        cookieKeys: cookieStore.getAll().map(c => c.name),
-        envFallback: {
-          hasEnvAccessToken: !!process.env.AWEBER_ACCESS_TOKEN,
-          hasEnvAccountId: !!process.env.AWEBER_ACCOUNT_ID
-        }
-      });
       
       return { accessToken, accountId };
     } catch (error) {
@@ -185,18 +160,8 @@ class AWeberServerAPI {
       // Fix list ID format - remove 'awlist' prefix if present
       if (targetListId && targetListId.startsWith('awlist')) {
         targetListId = targetListId.replace('awlist', '');
-        console.log('Fixed list ID format:', {
-          original: subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID,
-          fixed: targetListId
-        });
       }
       
-      console.log('List ID configuration:', {
-        subscriberListId: subscriber.listId,
-        envSellerListId: process.env.AWEBER_SELLER_LIST_ID,
-        envListId: process.env.AWEBER_LIST_ID,
-        finalListId: targetListId
-      });
       
       if (!targetListId) {
         console.error('No AWeber list ID configured');
@@ -215,14 +180,6 @@ class AWeberServerAPI {
         tags: subscriber.tags || []
       };
 
-      console.log('Subscribing to AWeber:', { 
-        email: subscriber.email, 
-        listId: targetListId, 
-        accountId,
-        tokenPreview: accessToken.substring(0, 20) + '...',
-        url,
-        payload
-      });
 
       let response = await fetch(url, {
         method: 'POST',
@@ -235,12 +192,10 @@ class AWeberServerAPI {
 
       // If 401, try to refresh the token and retry
       if (response.status === 401) {
-        console.log('Token expired, attempting refresh...');
         const { refreshAWeberToken } = await import('./aweber-token-refresh');
         const refreshResult = await refreshAWeberToken();
         
         if (refreshResult.access_token) {
-          console.log('Token refreshed successfully, retrying subscription...');
           response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -254,28 +209,14 @@ class AWeberServerAPI {
         }
       }
 
-      console.log('AWeber API response:', {
-        status: response.status,
-        statusText: response.statusText,
-        url,
-        headers: Object.fromEntries(response.headers.entries())
-      });
 
       if (response.ok) {
         // Check if response has content before parsing JSON
         const responseText = await response.text();
-        console.log('AWeber API response content:', {
-          hasContent: !!responseText,
-          contentLength: responseText.length,
-          contentPreview: responseText.substring(0, 100),
-          status: response.status,
-          statusText: response.statusText
-        });
         
         // Handle successful responses (201 Created) that might be empty
         if (!responseText.trim()) {
           if (response.status === 201) {
-            console.log('AWeber API returned empty response for 201 Created - this is normal');
             return {
               success: true,
               message: 'Successfully subscribed to newsletter (Created)'

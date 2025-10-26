@@ -27,28 +27,23 @@ export function useCart() {
   }, []);
 
   useEffect(() => {
-    console.log('useCart: Starting effect');
     const auth = getAuth();
     let unsubscribeCart: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('useCart: Auth state changed, user:', user ? user.uid : 'null');
 
       // Clean up any previous cart listener when auth state changes
       if (!user && unsubscribeCart) {
-        console.log('useCart: Cleaning up previous cart listener');
         unsubscribeCart();
         unsubscribeCart = null;
       }
 
       if (user) {
         setCurrentUserId(user.uid);
-        console.log('useCart: User authenticated, setting up cart listener for:', user.uid);
 
         // Check cache first
         const cached = cartCache.get(user.uid);
         if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-          console.log('useCart: Using cached cart data');
           setCartItems(cached.data);
           updateCartCount(cached.data);
           setLoading(false);
@@ -58,7 +53,6 @@ export function useCart() {
         if (typeof window !== 'undefined') {
           const localCart = getCartFromLocalStorage();
           if (localCart.length > 0) {
-            console.log('useCart: Found local cart items, syncing with Firestore');
             try {
               const cartRef = doc(db, 'cart', user.uid);
               const cartSnap = await getDoc(cartRef);
@@ -85,7 +79,6 @@ export function useCart() {
               
               // Clear localStorage after successful sync
               clearLocalStorageCart();
-              console.log('useCart: Successfully synced local cart with Firestore');
             } catch (error) {
               console.error('useCart: Error syncing local cart with Firestore:', error);
             }
@@ -95,24 +88,19 @@ export function useCart() {
         // Set up real-time listener with error handling
         try {
           const cartRef = doc(db, 'cart', user.uid);
-          console.log('useCart: Cart reference created:', cartRef.path);
 
           unsubscribeCart = onSnapshot(
             cartRef,
             (snapshot) => {
-              console.log('useCart: Cart snapshot received:', snapshot.exists());
               if (snapshot.exists()) {
                 const cartData = snapshot.data();
-                console.log('useCart: Cart data from snapshot:', cartData);
                 const items = Object.values(cartData).filter(
                   (item) => typeof item === 'object' && item !== null && 'id' in item
                 ) as CartItem[];
-                console.log('useCart: Extracted cart items:', items);
                 cartCache.set(user.uid, { data: items, timestamp: Date.now() });
                 setCartItems(items);
                 updateCartCount(items);
               } else {
-                console.log('useCart: Cart document does not exist');
                 setCartItems([]);
                 updateCartCount([]);
                 cartCache.delete(user.uid);
@@ -123,7 +111,6 @@ export function useCart() {
               console.error('useCart: Error in cart snapshot:', error);
               // If permission denied, fall back to localStorage
               if (error.code === 'permission-denied') {
-                console.log('useCart: Permission denied, falling back to localStorage');
                 const localItems = getCartFromLocalStorage();
                 setCartItems(localItems);
                 updateCartCount(localItems);
@@ -143,11 +130,9 @@ export function useCart() {
           setLoading(false);
         }
       } else {
-        console.log('useCart: No user, setting up localStorage');
         setCurrentUserId(null);
         if (typeof window !== 'undefined') {
           const items = getCartFromLocalStorage();
-          console.log('useCart: Loaded items from localStorage:', items);
           setCartItems(items);
           updateCartCount(items);
         }
@@ -156,7 +141,6 @@ export function useCart() {
     });
 
     return () => {
-      console.log('useCart: Cleaning up auth listener');
       if (unsubscribeCart) {
         unsubscribeCart();
         unsubscribeCart = null;
@@ -189,7 +173,6 @@ export function useCart() {
     setCartCount(memoizedCartCount);
   }, [memoizedCartCount]);
 
-  console.log('useCart: Current state - userId:', currentUserId, 'loading:', loading, 'items:', cartItems.length, 'count:', cartCount);
 
   return { cartItems, cartCount, currentUserId, loading };
 } 
