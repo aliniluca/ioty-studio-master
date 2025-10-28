@@ -52,7 +52,7 @@ class AWeberServerAPI {
    * Get a valid access token, with optional validation
    */
   private async getValidAccessToken(validateToken: boolean = true): Promise<{ accessToken: string; accountId: string } | null> {
-    const { accessToken, accountId } = await this.getTokens();
+    const { accessToken, accountId, refreshToken } = await this.getTokens();
     
     if (!accessToken || !accountId) {
       return null;
@@ -76,7 +76,7 @@ class AWeberServerAPI {
 
       if (testResponse.status === 401) {
         const { refreshAWeberToken } = await import('./aweber-token-refresh');
-        const refreshResult = await refreshAWeberToken();
+        const refreshResult = await refreshAWeberToken(refreshToken);
         
         if (refreshResult.access_token) {
           return { accessToken: refreshResult.access_token, accountId };
@@ -125,15 +125,17 @@ class AWeberServerAPI {
       const cookieStore = await cookies()
       const accessToken = cookieStore.get('aweber_access_token')?.value || process.env.AWEBER_ACCESS_TOKEN || '';
       const accountId = cookieStore.get('aweber_account_id')?.value || process.env.AWEBER_ACCOUNT_ID || '';
+      const refreshToken = cookieStore.get('aweber_refresh_token')?.value || process.env.AWEBER_REFRESH_TOKEN || '';
       
       
-      return { accessToken, accountId };
+      return { accessToken, accountId, refreshToken };
     } catch (error) {
       console.error('Error reading AWeber cookies:', error);
       // Fallback to environment variables if cookies are not available
       return {
         accessToken: process.env.AWEBER_ACCESS_TOKEN || '',
-        accountId: process.env.AWEBER_ACCOUNT_ID || ''
+        accountId: process.env.AWEBER_ACCOUNT_ID || '',
+        refreshToken: process.env.AWEBER_REFRESH_TOKEN || ''
       };
     }
   }

@@ -3,7 +3,7 @@
  * Handles refreshing expired access tokens
  */
 
-export async function refreshAWeberToken(): Promise<{ access_token?: string; error?: string }> {
+export async function refreshAWeberToken(refreshToken: string): Promise<{ access_token?: string; error?: string }> {
   try {
     const clientId = process.env.AWEBER_CLIENT_ID
     const clientSecret = process.env.AWEBER_CLIENT_SECRET
@@ -12,15 +12,13 @@ export async function refreshAWeberToken(): Promise<{ access_token?: string; err
       return { error: 'AWeber credentials not configured' }
     }
 
-    // Get refresh token from cookies
+    if (!refreshToken) {
+      return { error: 'No refresh token provided' }
+    }
+    
+    // Get cookies for updating tokens
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
-    const refreshToken = cookieStore.get('aweber_refresh_token')?.value
-
-
-    if (!refreshToken) {
-      return { error: 'No refresh token available' }
-    }
 
     // Create Basic Auth header
     const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
