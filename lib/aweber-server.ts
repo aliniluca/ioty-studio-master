@@ -143,16 +143,16 @@ class AWeberServerAPI {
    */
   async subscribeToNewsletter(subscriber: AWeberSubscriber): Promise<AWeberResponse> {
     try {
-      // Get tokens directly without validation (since validation is failing)
-      const { accessToken, accountId } = await this.getTokens();
+      const tokenInfo = await this.getValidAccessToken();
       
-      if (!accessToken || !accountId) {
-        console.error('AWeber OAuth not completed');
+      if (!tokenInfo) {
+        console.error('AWeber OAuth not completed or token is invalid');
         return {
           success: false,
-          message: 'AWeber OAuth not completed. Please complete OAuth flow first by visiting /api/auth/aweber?action=connect'
+          message: 'AWeber authorization is missing or invalid. Please authorize the application.'
         };
       }
+      const { accessToken, accountId } = tokenInfo;
 
       // Use custom listId if provided, otherwise use default
       let targetListId = subscriber.listId || process.env.AWEBER_SELLER_LIST_ID || process.env.AWEBER_LIST_ID;
@@ -181,7 +181,7 @@ class AWeberServerAPI {
       };
 
 
-      let response = await fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -189,25 +189,6 @@ class AWeberServerAPI {
         },
         body: JSON.stringify(payload)
       });
-
-      // If 401, try to refresh the token and retry
-      if (response.status === 401) {
-        const { refreshAWeberToken } = await import('./aweber-token-refresh');
-        const refreshResult = await refreshAWeberToken();
-        
-        if (refreshResult.access_token) {
-          response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${refreshResult.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          console.error('Token refresh failed:', refreshResult.error);
-        }
-      }
 
 
       if (response.ok) {
