@@ -152,9 +152,9 @@ class AWeberServerAPI {
     // Try to get tokens from cookies first (OAuth flow)
     try {
       const cookieStore = await cookies()
-      const accessToken = cookieStore.get('aweber_access_token')?.value || process.env.AWEBER_ACCESS_TOKEN || '';
-      const accountId = cookieStore.get('aweber_account_id')?.value || process.env.AWEBER_ACCOUNT_ID || '';
-      const refreshToken = cookieStore.get('aweber_refresh_token')?.value || process.env.AWEBER_REFRESH_TOKEN || '';
+      const accessToken = cookieStore.get('aweber_access_token')?.value || '';
+      const accountId = cookieStore.get('aweber_account_id')?.value || '';
+      const refreshToken = cookieStore.get('aweber_refresh_token')?.value || '';
       
       
       return { accessToken, accountId, refreshToken };
@@ -162,9 +162,9 @@ class AWeberServerAPI {
       console.error('Error reading AWeber cookies:', error);
       // Fallback to environment variables if cookies are not available
       return {
-        accessToken: process.env.AWEBER_ACCESS_TOKEN || '',
-        accountId: process.env.AWEBER_ACCOUNT_ID || '',
-        refreshToken: process.env.AWEBER_REFRESH_TOKEN || ''
+        accessToken: '',
+        accountId: '',
+        refreshToken: ''
       };
     }
   }
