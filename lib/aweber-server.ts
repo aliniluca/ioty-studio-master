@@ -31,7 +31,7 @@ class AWeberServerAPI {
     options: RequestInit,
     retry: boolean = true
   ): Promise<Response> {
-    const { accessToken, refreshToken } = await this.getTokens();
+    let { accessToken, refreshToken } = await this.getTokens();
     
     if (!accessToken) {
       return new Response('AWeber access token not found', { status: 401 });
@@ -50,12 +50,15 @@ class AWeberServerAPI {
       const refreshResult = await refreshAWeberToken(refreshToken);
 
       if (refreshResult.access_token) {
+        // Update the access token for the retry
+        accessToken = refreshResult.access_token;
+        
         // Retry the request with the new token
         return this.makeRequest(url, {
           ...options,
           headers: {
             ...options.headers,
-            'Authorization': `Bearer ${refreshResult.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
         }, false); // Don't retry again
       } else {
