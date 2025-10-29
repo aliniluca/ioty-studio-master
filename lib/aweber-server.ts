@@ -26,6 +26,47 @@ class AWeberServerAPI {
     this.baseUrl = 'https://api.aweber.com/1.0';
   }
 
+  private async makeRequest(
+    url: string,
+    options: RequestInit,
+    retry: boolean = true
+  ): Promise<Response> {
+    const { accessToken, refreshToken } = await this.getTokens();
+    
+    if (!accessToken) {
+      return new Response('AWeber access token not found', { status: 401 });
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (response.status === 401 && retry && refreshToken) {
+      const { refreshAWeberToken } = await import('./aweber-token-refresh');
+      const refreshResult = await refreshAWeberToken(refreshToken);
+
+      if (refreshResult.access_token) {
+        // Retry the request with the new token
+        return this.makeRequest(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${refreshResult.access_token}`,
+          },
+        }, false); // Don't retry again
+      } else {
+        console.error('Token refresh failed, clearing tokens.');
+        await this.clearOAuthTokens();
+      }
+    }
+
+    return response;
+  }
+
   /**
    * Check if AWeber OAuth is properly configured
    */
@@ -65,30 +106,18 @@ class AWeberServerAPI {
 
     // Test the token by making a simple API call
     try {
-      
-      const testResponse = await fetch(`${this.baseUrl}/accounts/${accountId}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-
-      if (testResponse.status === 401) {
-        const { refreshAWeberToken } = await import('./aweber-token-refresh');
-        const refreshResult = await refreshAWeberToken(refreshToken);
-        
-        if (refreshResult.access_token) {
-          return { accessToken: refreshResult.access_token, accountId };
-        } else {
-          console.error('Token refresh failed:', refreshResult.error);
-          // Clear invalid tokens
-          await this.clearOAuthTokens();
-          return null;
+      const testResponse = await this.makeRequest(
+        `${this.baseUrl}/accounts/${accountId}`,
+        {
+          headers: { 'Content-Type': 'application/json' },
         }
-      }
+      );
 
       if (!testResponse.ok) {
+        if (testResponse.status === 401) {
+          console.error('Token is invalid and refresh failed.');
+          await this.clearOAuthTokens();
+        }
         console.error('Token validation failed with status:', testResponse.status);
         const errorText = await testResponse.text().catch(() => 'Unknown error');
         console.error('Error response:', errorText);
@@ -182,16 +211,13 @@ class AWeberServerAPI {
         tags: subscriber.tags || []
       };
 
-
-      const response = await fetch(url, {
+      const response = await this.makeRequest(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload)
       });
-
 
       if (response.ok) {
         // Check if response has content before parsing JSON
