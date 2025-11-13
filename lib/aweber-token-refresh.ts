@@ -1,0 +1,97 @@
+/**
+ * AWeber Token Refresh Utility
+ * Handles refreshing expired access tokens
+ */
+
+export async function refreshAWeberToken(refreshToken: string): Promise<{ access_token?: string; error?: string }> {
+  try {
+    const clientId = process.env.AWEBER_CLIENT_ID
+    const clientSecret = process.env.AWEBER_CLIENT_SECRET
+    
+    if (!clientId || !clientSecret) {
+      return { error: 'AWeber credentials not configured' }
+    }
+
+    if (!refreshToken) {
+      return { error: 'No refresh token provided' }
+    }
+    
+    // Get cookies for updating tokens
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+
+    // Create Basic Auth header
+    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+
+    const response = await fetch('https://auth.aweber.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${authHeader}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('Token refresh failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      })
+      return { error: `Token refresh failed: ${errorData.error || response.status} - ${errorData.error_description || response.statusText}` }
+    }
+
+    const tokenData = await response.json()
+
+    if (tokenData.access_token) {
+      // Calculate token expiration time
+      const expiresIn = tokenData.expires_in || 3600 // Default to 1 hour
+      const expiresAt = Date.now() + (expiresIn * 1000)
+
+      console.log('Token refreshed:', {
+        expiresIn,
+        expiresAt: new Date(expiresAt).toISOString(),
+        hasNewRefreshToken: !!tokenData.refresh_token
+      })
+
+      const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
+
+      // Update the access token in cookies
+      cookieStore.set('aweber_access_token', tokenData.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: cookieMaxAge,
+      })
+
+      // Update token expiration timestamp
+      cookieStore.set('aweber_token_expires_at', expiresAt.toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: cookieMaxAge,
+      })
+
+      // Update refresh token if provided (AWeber may or may not return a new one)
+      if (tokenData.refresh_token) {
+        cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 365, // 1 year
+        })
+      }
+
+      return { access_token: tokenData.access_token }
+    }
+
+    return { error: 'No access token in refresh response' }
+  } catch (error: any) {
+    console.error('AWeber token refresh error:', error)
+    return { error: error.message || 'Token refresh failed' }
+  }
+}
