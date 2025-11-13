@@ -1,9 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { onAuthStateChanged } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -16,17 +15,29 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Make sure we don't initialize the app more than once
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// Initialize Firebase app (safe for SSR)
+const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Only get analytics on the client
+// Analytics - client only
 let analytics;
 if (typeof window !== "undefined") {
   analytics = getAnalytics(app);
 }
 
-const db = getFirestore(app);
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
+// Firestore - safe for both SSR and client
+const db: Firestore = getFirestore(app);
+
+// Auth - client only to prevent SSR issues
+let auth: Auth;
+let googleProvider: GoogleAuthProvider;
+
+if (typeof window !== "undefined") {
+  auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
+} else {
+  // Stub for server-side
+  auth = null as any;
+  googleProvider = null as any;
+}
 
 export { app, analytics, db, auth, googleProvider };
