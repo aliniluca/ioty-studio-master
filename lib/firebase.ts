@@ -24,8 +24,23 @@ if (typeof window !== "undefined") {
   analytics = getAnalytics(app);
 }
 
-// Firestore - safe for both SSR and client
-const db: Firestore = getFirestore(app);
+// Lazy-initialize Firestore to avoid SSR issues
+let _db: Firestore | undefined;
+function getDb(): Firestore {
+  if (!_db) {
+    _db = getFirestore(app);
+  }
+  return _db;
+}
+
+// Export db as a getter to ensure lazy initialization
+export const db = new Proxy({} as Firestore, {
+  get: (target, prop) => {
+    const instance = getDb();
+    const value = (instance as any)[prop];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  }
+});
 
 // Auth - client only to prevent SSR issues
 let auth: Auth;
@@ -40,4 +55,4 @@ if (typeof window !== "undefined") {
   googleProvider = null as any;
 }
 
-export { app, analytics, db, auth, googleProvider };
+export { app, analytics, auth, googleProvider };
