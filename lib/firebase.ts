@@ -26,7 +26,19 @@ if (typeof window !== "undefined") {
 }
 
 const db = getFirestore(app);
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
+
+// Only initialize auth and googleProvider on the client side
+// Server components should not use auth directly
+let auth: ReturnType<typeof getAuth>;
+let googleProvider: GoogleAuthProvider;
+
+if (typeof window !== "undefined") {
+  auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
+} else {
+  // Provide stub for server-side (will not be used)
+  auth = null as any;
+  googleProvider = null as any;
+}
 
 export { app, analytics, db, auth, googleProvider };
