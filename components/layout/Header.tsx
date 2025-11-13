@@ -39,6 +39,11 @@ export function Header() {
   console.log('Header - Cart count:', cartCount, 'Cart items:', cartItems, 'Loading:', loading);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     console.log('Header: Setting up auth listener');
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       console.log('Header: Auth state changed, user:', user ? user.uid : 'null');

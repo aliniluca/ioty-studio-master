@@ -11,26 +11,32 @@ export function useCart() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+
     console.log('useCart: Starting effect');
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('useCart: Auth state changed, user:', user ? user.uid : 'null');
-      
+
       if (user) {
         setCurrentUserId(user.uid);
         console.log('useCart: User authenticated, setting up cart listener for:', user.uid);
-        
+
                        // Listen to cart changes in Firestore (new structure)
                const cartRef = doc(db, 'cart', user.uid);
         console.log('useCart: Cart reference created:', cartRef.path);
-        
+
         const unsubscribeCart = onSnapshot(cartRef, (snapshot) => {
           console.log('useCart: Cart snapshot received:', snapshot.exists());
           if (snapshot.exists()) {
             const cartData = snapshot.data();
             console.log('useCart: Cart data from snapshot:', cartData);
             // Extract cart items from the document
-            const items = Object.values(cartData).filter(item => 
+            const items = Object.values(cartData).filter(item =>
               typeof item === 'object' && item !== null && 'id' in item
             ) as CartItem[];
             console.log('useCart: Extracted cart items:', items);
@@ -48,7 +54,7 @@ export function useCart() {
           setCartCount(0);
           setLoading(false);
         });
-        
+
         return () => {
           console.log('useCart: Cleaning up cart listener');
           unsubscribeCart();
@@ -57,16 +63,14 @@ export function useCart() {
         console.log('useCart: No user, setting up localStorage');
         setCurrentUserId(null);
         // Load cart from localStorage
-        if (typeof window !== 'undefined') {
-          const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
-          console.log('useCart: Loaded items from localStorage:', items);
-          setCartItems(items);
-          setCartCount(items.reduce((sum, item) => sum + item.quantity, 0));
-        }
+        const items = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
+        console.log('useCart: Loaded items from localStorage:', items);
+        setCartItems(items);
+        setCartCount(items.reduce((sum, item) => sum + item.quantity, 0));
         setLoading(false);
       }
     });
-    
+
     return () => {
       console.log('useCart: Cleaning up auth listener');
       unsubscribe();
