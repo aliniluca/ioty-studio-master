@@ -15,29 +15,29 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase app (safe for SSR)
-const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-// Analytics - client only
-let analytics;
-if (typeof window !== "undefined") {
-  analytics = getAnalytics(app);
-}
-
-// Firestore - safe for both SSR and client
-const db: Firestore = getFirestore(app);
-
-// Auth - client only to prevent SSR issues
+// Only initialize on client side
+let app: FirebaseApp;
+let analytics: any;
+let _db: Firestore;
 let auth: Auth;
 let googleProvider: GoogleAuthProvider;
 
 if (typeof window !== "undefined") {
+  // Client-side initialization
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  analytics = getAnalytics(app);
+  _db = getFirestore(app);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
 } else {
-  // Stub for server-side
+  // Server-side stubs
+  app = null as any;
+  analytics = null as any;
+  _db = null as any;
   auth = null as any;
   googleProvider = null as any;
 }
 
-export { app, analytics, db, auth, googleProvider };
+// Export everything
+export { app, analytics, auth, googleProvider };
+export const db = _db;
