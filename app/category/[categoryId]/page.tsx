@@ -1,7 +1,8 @@
-import { use } from 'react';
+"use client";
+import { use, useEffect, useState } from 'react';
 import { ListingCard } from '@/components/shared/ListingCard';
 import { Button } from '@/components/ui/button';
-import { Filter, ArrowUpDown, Search, WandSparkles } from 'lucide-react'; 
+import { Filter, ArrowUpDown, Search, WandSparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,15 +40,7 @@ function findSubcategory(category: NavCategory, subcategorySlug: string): SubCat
 }
 
 
-export async function generateStaticParams() {
-  const params: { categoryId: string; subcategory?: string }[] = [];
-  navigationCategories.forEach(cat => {
-    params.push({ categoryId: cat.slug });
-  });
-  params.push({ categoryId: 'all' });
-  params.push({ categoryId: 'featured' });
-  return params;
-}
+// Removed generateStaticParams - now client-side dynamic page
 
 
 function getCategoryDisplayName(categoryId: string): string {
@@ -69,23 +62,47 @@ interface PageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function CategoryPage({ params, searchParams }: PageProps) {
+export default function CategoryPage({ params, searchParams }: PageProps) {
   const resolvedParams = use(params);
   const resolvedSearchParams = searchParams ? use(searchParams) : {};
-  
+
   const { categoryId } = resolvedParams;
   const searchQuery = resolvedSearchParams?.q as string | undefined;
   const subcategorySlug = resolvedSearchParams?.subcategory as string | undefined;
 
+  const [allProducts, setAllProducts] = useState<ProductDetails[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
   const currentCategory = findCategory(categoryId);
   const currentSubcategory = currentCategory && subcategorySlug ? findSubcategory(currentCategory, subcategorySlug) : undefined;
 
-  // Fetch all products from Firestore
-  let allProducts: ProductDetails[] = [];
-  try {
-    const querySnapshot = await getDocs(collection(db, 'listings'));
-    allProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ProductDetails[];
-  } catch (e) {
+  // Fetch all products from Firestore on client side
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'listings'));
+        const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ProductDetails[];
+        setAllProducts(products);
+        setLoading(false);
+      } catch (e) {
+        console.error('Error fetching products:', e);
+        setError(true);
+        setLoading(false);
+      }
+    }
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Se încarcă făuriturile...</p>
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <PlaceholderContent
         title="Eroare la încărcarea produselor"

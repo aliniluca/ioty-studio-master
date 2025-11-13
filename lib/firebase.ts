@@ -15,44 +15,29 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase app (safe for SSR)
-const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-// Analytics - client only
-let analytics;
-if (typeof window !== "undefined") {
-  analytics = getAnalytics(app);
-}
-
-// Lazy-initialize Firestore to avoid SSR issues
-let _db: Firestore | undefined;
-function getDb(): Firestore {
-  if (!_db) {
-    _db = getFirestore(app);
-  }
-  return _db;
-}
-
-// Export db as a getter to ensure lazy initialization
-export const db = new Proxy({} as Firestore, {
-  get: (target, prop) => {
-    const instance = getDb();
-    const value = (instance as any)[prop];
-    return typeof value === 'function' ? value.bind(instance) : value;
-  }
-});
-
-// Auth - client only to prevent SSR issues
+// Only initialize on client side
+let app: FirebaseApp;
+let analytics: any;
+let _db: Firestore;
 let auth: Auth;
 let googleProvider: GoogleAuthProvider;
 
 if (typeof window !== "undefined") {
+  // Client-side initialization
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  analytics = getAnalytics(app);
+  _db = getFirestore(app);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
 } else {
-  // Stub for server-side
+  // Server-side stubs
+  app = null as any;
+  analytics = null as any;
+  _db = null as any;
   auth = null as any;
   googleProvider = null as any;
 }
 
+// Export everything
 export { app, analytics, auth, googleProvider };
+export const db = _db;
