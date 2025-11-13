@@ -10,6 +10,11 @@ import Link from 'next/link';
 export function NotificationBell() {
   const [unread, setUnread] = useState(0);
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const q = query(collection(db, 'users', user.uid, 'notifications'), where('read', '==', false));

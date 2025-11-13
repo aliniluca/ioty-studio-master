@@ -96,6 +96,11 @@ export function ListingCard({ listing }: ListingCardProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
