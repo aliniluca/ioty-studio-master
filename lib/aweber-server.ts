@@ -3,7 +3,7 @@
  * Handles newsletter subscriptions and user registration on the server
  */
 
-import { cookies } from 'next/headers'
+import { getAWeberTokens, deleteAWeberTokens } from './aweber-token-storage'
 
 export interface AWeberSubscriber {
   email: string;
@@ -98,16 +98,12 @@ class AWeberServerAPI {
   }
 
   /**
-   * Clear OAuth tokens from cookies
+   * Clear OAuth tokens from Firestore
    */
   private async clearOAuthTokens(): Promise<void> {
     try {
-      const cookieStore = await cookies()
-      cookieStore.delete('aweber_access_token')
-      cookieStore.delete('aweber_account_id')
-      cookieStore.delete('aweber_refresh_token')
-      cookieStore.delete('aweber_token_expires_at')
-      cookieStore.delete('aweber_oauth_state')
+      await deleteAWeberTokens()
+      console.log('AWeber tokens cleared from Firestore')
     } catch (error) {
       console.error('Error clearing OAuth tokens:', error)
     }
@@ -173,39 +169,44 @@ class AWeberServerAPI {
   }
 
   private async getTokens() {
-    // Try to get tokens from cookies first (OAuth flow)
+    // Get tokens from Firestore (server-side storage)
     try {
-      const cookieStore = await cookies()
-      const accessToken = cookieStore.get('aweber_access_token')?.value || '';
-      const accountId = cookieStore.get('aweber_account_id')?.value || '';
-      const refreshToken = cookieStore.get('aweber_refresh_token')?.value || '';
-      const expiresAtStr = cookieStore.get('aweber_token_expires_at')?.value || '';
-      const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
+      const tokens = await getAWeberTokens()
 
-      // Debug logging for troubleshooting cookie issues
-      console.log('AWeber getTokens - Cookie check:', {
-        hasAccessToken: !!accessToken,
-        hasAccountId: !!accountId,
-        hasRefreshToken: !!refreshToken,
-        hasExpiresAt: !!expiresAt,
-        accessTokenPreview: accessToken ? accessToken.substring(0, 10) + '...' : 'MISSING',
-        allCookies: Array.from(cookieStore.getAll()).map(c => c.name)
-      });
-
-      if (!accessToken || !accountId) {
-        console.warn('AWeber tokens missing from cookies - user needs to authorize');
+      if (!tokens) {
+        console.warn('AWeber tokens not found in Firestore - user needs to authorize')
+        return {
+          accessToken: '',
+          accountId: '',
+          refreshToken: '',
+          expiresAt: 0
+        }
       }
 
-      return { accessToken, accountId, refreshToken, expiresAt };
+      console.log('AWeber getTokens - Firestore check:', {
+        hasAccessToken: !!tokens.access_token,
+        hasAccountId: !!tokens.account_id,
+        hasRefreshToken: !!tokens.refresh_token,
+        hasExpiresAt: !!tokens.expires_at,
+        accessTokenPreview: tokens.access_token ? tokens.access_token.substring(0, 10) + '...' : 'MISSING',
+        expiresAt: new Date(tokens.expires_at).toISOString(),
+        isExpired: Date.now() >= tokens.expires_at
+      })
+
+      return {
+        accessToken: tokens.access_token,
+        accountId: tokens.account_id || '',
+        refreshToken: tokens.refresh_token,
+        expiresAt: tokens.expires_at
+      }
     } catch (error) {
-      console.error('Error reading AWeber cookies:', error);
-      // Fallback to environment variables if cookies are not available
+      console.error('Error reading AWeber tokens from Firestore:', error)
       return {
         accessToken: '',
         accountId: '',
         refreshToken: '',
         expiresAt: 0
-      };
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { saveAWeberTokens } from '@/lib/aweber-token-storage'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -10,13 +11,21 @@ export async function GET(req: NextRequest) {
   // Handle OAuth errors
   if (error) {
     console.error('AWeber OAuth error:', error)
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=${encodeURIComponent(error)}`)
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=${encodeURIComponent(error)}`
+    return new NextResponse(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+      { status: 200, headers: { 'Content-Type': 'text/html' } }
+    )
   }
 
   // Validate required parameters
   if (!code) {
     console.error('No authorization code received from AWeber')
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_code`)
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_code`
+    return new NextResponse(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+      { status: 200, headers: { 'Content-Type': 'text/html' } }
+    )
   }
 
   // Validate state parameter for security
@@ -30,12 +39,16 @@ export async function GET(req: NextRequest) {
       storedState: storedState,
       statesMatch: state === storedState
     });
-    
+
     // Temporary bypass for debugging - remove in production
     if (process.env.NODE_ENV === 'development') {
       console.warn('Bypassing state validation in development mode');
     } else {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=invalid_state`)
+      const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=invalid_state`
+      return new NextResponse(
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
     }
   }
 
@@ -64,14 +77,22 @@ export async function GET(req: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({}))
       console.error('AWeber token exchange failed:', errorData)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=token_exchange_failed`)
+      const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=token_exchange_failed`
+      return new NextResponse(
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
     }
 
     const tokenData = await tokenResponse.json()
 
     if (!tokenData.access_token) {
       console.error('No access token in response:', tokenData)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_access_token`)
+      const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_access_token`
+      return new NextResponse(
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
     }
 
     // Calculate token expiration time
@@ -107,76 +128,63 @@ export async function GET(req: NextRequest) {
       console.warn('Could not fetch account ID:', accountError)
     }
 
-    // Store the access token and account ID in secure cookies
-    // Cookie maxAge is longer than token expiry - we'll check expiration separately
-    const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
-
-    // Determine if we should use secure cookies (HTTPS)
-    // Check if the base URL uses https OR if we're in production
-    const isSecure = process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https') || process.env.NODE_ENV === 'production'
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax' as const,
-      path: '/',
-    }
-
-    console.log('Setting AWeber cookies with options:', {
-      ...cookieOptions,
-      maxAge: cookieMaxAge,
-      isSecure,
-      baseUrl: process.env.NEXT_PUBLIC_BASE_URL
-    })
-
-    cookieStore.set('aweber_access_token', tokenData.access_token, {
-      ...cookieOptions,
-      maxAge: cookieMaxAge,
-    })
-
-    // Store token expiration timestamp
-    cookieStore.set('aweber_token_expires_at', expiresAt.toString(), {
-      ...cookieOptions,
-      maxAge: cookieMaxAge,
-    })
-
-    if (accountId) {
-      cookieStore.set('aweber_account_id', accountId, {
-        ...cookieOptions,
-        maxAge: cookieMaxAge,
-      })
-    }
-
     // Store refresh token - AWeber ALWAYS returns a new one
     // Per AWeber docs: refresh tokens don't expire but ARE rotated on each refresh
     if (!tokenData.refresh_token) {
       console.error('CRITICAL: No refresh token in response! Token data:', tokenData)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_refresh_token`)
+      const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_refresh_token`
+      return new NextResponse(
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
     }
 
-    cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-      ...cookieOptions,
-      maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire per AWeber docs)
+    // Save tokens to Firestore (server-side storage)
+    await saveAWeberTokens({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_at: expiresAt,
+      account_id: accountId || undefined,
+      updated_at: Date.now()
     })
 
-    console.log('All AWeber tokens stored successfully in cookies')
-
-    // Verify cookies were actually set by reading them back
-    const verifyToken = cookieStore.get('aweber_access_token')
-    const verifyRefresh = cookieStore.get('aweber_refresh_token')
-    console.log('Cookie verification:', {
-      accessTokenSet: !!verifyToken?.value,
-      refreshTokenSet: !!verifyRefresh?.value,
-      cookieCount: cookieStore.getAll().length
-    })
+    console.log('AWeber tokens saved successfully to Firestore')
 
     // Clean up the OAuth state cookie
     cookieStore.delete('aweber_oauth_state')
-    
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?success=true&connected=aweber`)
+
+    // Use client-side redirect instead of server-side for better mobile/incognito compatibility
+    // Server-side redirects can fail to persist cookies on mobile browsers
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?success=true&connected=aweber`
+
+    return new NextResponse(
+      `<!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Redirecting...</title>
+        </head>
+        <body>
+          <p>Authorization successful! Redirecting...</p>
+          <script>
+            window.location.href = "${redirectUrl}";
+          </script>
+        </body>
+      </html>`,
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      }
+    )
 
   } catch (error) {
     console.error('AWeber OAuth callback error:', error)
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=oauth_callback_error`)
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=oauth_callback_error`
+    return new NextResponse(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body><p>Redirecting...</p><script>window.location.href = "${redirectUrl}";</script></body></html>`,
+      { status: 200, headers: { 'Content-Type': 'text/html' } }
+    )
   }
 }
