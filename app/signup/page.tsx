@@ -47,12 +47,48 @@ export default function SignupPage() {
     },
   });
 
- const handleAuthSuccess = async (user: User, provider?: string) => {
+  const handleAWeberSubscription = async (user: User, provider?: string) => {
+    try {
+      // Determine user type (default to buyer, can be customized)
+      const userType = 'buyer'
 
-    const title = provider === 'google' 
-      ? "Bun venit în breaslă!" 
+      const response = await fetch('/api/aweber/register-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email || '',
+          name: user.displayName || '',
+          userType: userType,
+          customFields: {
+            'signup_method': provider || 'email',
+            'user_id': user.uid,
+            'signup_date': new Date().toISOString()
+          }
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('Successfully subscribed user to newsletter:', result.message)
+      } else {
+        console.warn('Failed to subscribe user to newsletter:', result.error)
+      }
+    } catch (error) {
+      console.error('Error subscribing user to newsletter:', error)
+    }
+  }
+
+  const handleAuthSuccess = async (user: User, provider?: string) => {
+    // Subscribe user to newsletter
+    await handleAWeberSubscription(user, provider)
+
+    const title = provider === 'google'
+      ? "Bun venit în breaslă!"
       : "Cont făurit! Verifică-ți emailul.";
-    
+
     const description = provider === 'google'
       ? `Salutări, ${user.displayName || 'Meșter Digital'}! Contul tău Google a fost legat de breasla noastră.`
       : `Salut, ${user.displayName}! Ți-am trimis un mesaj de verificare. Te rugăm, **confirmă-ți adresa de email înainte de a te autentifica**. Verifică și căsuța cu spamuri (spam).`;
@@ -62,8 +98,8 @@ export default function SignupPage() {
       description: description,
       duration: 10000,
     });
-    
-    router.push(provider === 'google' ? '/' : '/login'); 
+
+    router.push(provider === 'google' ? '/' : '/login');
     if (provider === 'google') router.refresh();
   };
 

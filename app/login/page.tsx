@@ -35,18 +35,52 @@ export default function LoginPage() {
     },
   });
 
-  const handleAuthSuccess = async (user: User, provider?: string) => {
+  const handleAWeberSubscription = async (user: User, provider?: string) => {
+    try {
+      const response = await fetch('/api/aweber/subscribe-google-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email || '',
+          name: user.displayName || '',
+          customFields: {
+            'login_method': provider || 'email',
+            'user_id': user.uid,
+            'login_date': new Date().toISOString()
+          }
+        })
+      })
 
-    const welcomeMessage = provider === 'google' 
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('Successfully subscribed user to newsletter:', result.message)
+      } else {
+        console.warn('Failed to subscribe user to newsletter:', result.error)
+      }
+    } catch (error) {
+      console.error('Error subscribing user to newsletter:', error)
+    }
+  }
+
+  const handleAuthSuccess = async (user: User, provider?: string) => {
+    // Subscribe Google users to newsletter
+    if (provider === 'google') {
+      await handleAWeberSubscription(user, provider)
+    }
+
+    const welcomeMessage = provider === 'google'
       ? `Salutări, ${user.displayName || 'Meșter Digital'}! Ai pășit în tărâm cu Google.`
       : "Bine ai reintrat în Tărâmul ioty!";
-    
+
     toast({
       title: "Bun venit înapoi, meștere!",
       description: welcomeMessage,
     });
     router.push('/');
-    router.refresh(); 
+    router.refresh();
   };
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
