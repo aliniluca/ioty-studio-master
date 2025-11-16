@@ -49,13 +49,16 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
 
     if (tokenData.access_token) {
       // Calculate token expiration time
-      const expiresIn = tokenData.expires_in || 3600 // Default to 1 hour
+      // AWeber access tokens expire after 2 hours (7200 seconds)
+      const expiresIn = tokenData.expires_in || 7200 // Default to 2 hours
       const expiresAt = Date.now() + (expiresIn * 1000)
 
-      console.log('Token refreshed:', {
+      console.log('Token refreshed successfully:', {
         expiresIn,
+        expiresInHours: expiresIn / 3600,
         expiresAt: new Date(expiresAt).toISOString(),
-        hasNewRefreshToken: !!tokenData.refresh_token
+        hasNewRefreshToken: !!tokenData.refresh_token,
+        timestamp: new Date().toISOString()
       })
 
       const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
@@ -76,15 +79,22 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
         maxAge: cookieMaxAge,
       })
 
-      // Update refresh token if provided (AWeber may or may not return a new one)
-      if (tokenData.refresh_token) {
-        cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 365, // 1 year
-        })
+      // CRITICAL: AWeber ALWAYS returns a new refresh token when you refresh
+      // The old refresh token is invalidated. We MUST update to the new one.
+      // Per AWeber docs: "You will receive a new token, an expires_in parameter, and a refresh token"
+      if (!tokenData.refresh_token) {
+        console.error('CRITICAL: AWeber did not return a refresh token in refresh response!', tokenData)
+        return { error: 'No refresh token in refresh response - token rotation failed' }
       }
+
+      cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire)
+      })
+
+      console.log('All tokens updated successfully including NEW refresh token')
 
       return { access_token: tokenData.access_token }
     }
