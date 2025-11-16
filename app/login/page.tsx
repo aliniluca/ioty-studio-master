@@ -35,41 +35,7 @@ export default function LoginPage() {
     },
   });
 
-  const handleAWeberSubscription = async (user: User, provider?: string) => {
-    try {
-      const response = await fetch('/api/aweber/subscribe-google-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: user.email || '',
-          name: user.displayName || '',
-          customFields: {
-            'login_method': provider || 'email',
-            'user_id': user.uid,
-            'login_date': new Date().toISOString()
-          }
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        console.log('Successfully subscribed user to newsletter:', result.message);
-      } else {
-        console.warn('Failed to subscribe user to newsletter:', result.error);
-      }
-    } catch (error) {
-      console.error('Error subscribing user to newsletter:', error);
-    }
-  };
-
   const handleAuthSuccess = async (user: User, provider?: string) => {
-    // Subscribe user to newsletter if they're using Google sign-in
-    if (provider === 'google') {
-      await handleAWeberSubscription(user, provider);
-    }
 
     const welcomeMessage = provider === 'google' 
       ? `Salutări, ${user.displayName || 'Meșter Digital'}! Ai pășit în tărâm cu Google.`
