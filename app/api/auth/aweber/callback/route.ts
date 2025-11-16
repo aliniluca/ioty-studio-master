@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Validate state parameter for security
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const storedState = cookieStore.get('aweber_oauth_state')?.value
   
   
@@ -75,13 +75,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Calculate token expiration time
-    // AWeber typically returns expires_in (seconds until expiration)
-    // Default to 3600 seconds (1 hour) if not provided
-    const expiresIn = tokenData.expires_in || 3600
+    // AWeber access tokens expire after 2 hours (7200 seconds)
+    // Documentation: https://help.aweber.com/hc/en-us/articles/360002941894
+    const expiresIn = tokenData.expires_in || 7200  // Default to 2 hours
     const expiresAt = Date.now() + (expiresIn * 1000) // Convert to milliseconds
 
     console.log('Token received:', {
       expiresIn,
+      expiresInHours: expiresIn / 3600,
       expiresAt: new Date(expiresAt).toISOString(),
       hasRefreshToken: !!tokenData.refresh_token
     })
@@ -137,16 +138,22 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Store refresh token if provided
-    if (tokenData.refresh_token) {
-      cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 365, // 1 year
-        path: '/'
-      })
+    // Store refresh token - AWeber ALWAYS returns a new one
+    // Per AWeber docs: refresh tokens don't expire but ARE rotated on each refresh
+    if (!tokenData.refresh_token) {
+      console.error('CRITICAL: No refresh token in response! Token data:', tokenData)
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/subscribe?error=no_refresh_token`)
     }
+
+    cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire per AWeber docs)
+      path: '/'
+    })
+
+    console.log('All tokens stored successfully in cookies')
 
     // Clean up the OAuth state cookie
     cookieStore.delete('aweber_oauth_state')
