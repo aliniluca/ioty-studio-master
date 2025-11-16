@@ -3,11 +3,13 @@
  * Handles refreshing expired access tokens
  */
 
+import { getAWeberTokens, saveAWeberTokens } from './aweber-token-storage'
+
 export async function refreshAWeberToken(refreshToken: string): Promise<{ access_token?: string; error?: string }> {
   try {
     const clientId = process.env.AWEBER_CLIENT_ID
     const clientSecret = process.env.AWEBER_CLIENT_SECRET
-    
+
     if (!clientId || !clientSecret) {
       return { error: 'AWeber credentials not configured' }
     }
@@ -15,10 +17,9 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
     if (!refreshToken) {
       return { error: 'No refresh token provided' }
     }
-    
-    // Get cookies for updating tokens
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
+
+    // Get existing tokens from Firestore to preserve account_id
+    const existingTokens = await getAWeberTokens()
 
     // Create Basic Auth header
     const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
@@ -61,29 +62,6 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
         timestamp: new Date().toISOString()
       })
 
-      const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
-
-      // Determine if we should use secure cookies (HTTPS)
-      const isSecure = process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https') || process.env.NODE_ENV === 'production'
-
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isSecure,
-        sameSite: 'lax' as const,
-      }
-
-      // Update the access token in cookies
-      cookieStore.set('aweber_access_token', tokenData.access_token, {
-        ...cookieOptions,
-        maxAge: cookieMaxAge,
-      })
-
-      // Update token expiration timestamp
-      cookieStore.set('aweber_token_expires_at', expiresAt.toString(), {
-        ...cookieOptions,
-        maxAge: cookieMaxAge,
-      })
-
       // CRITICAL: AWeber ALWAYS returns a new refresh token when you refresh
       // The old refresh token is invalidated. We MUST update to the new one.
       // Per AWeber docs: "You will receive a new token, an expires_in parameter, and a refresh token"
@@ -92,12 +70,16 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
         return { error: 'No refresh token in refresh response - token rotation failed' }
       }
 
-      cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-        ...cookieOptions,
-        maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire)
+      // Save updated tokens to Firestore
+      await saveAWeberTokens({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: expiresAt,
+        account_id: existingTokens?.account_id,
+        updated_at: Date.now()
       })
 
-      console.log('All tokens updated successfully including NEW refresh token')
+      console.log('All tokens updated successfully in Firestore including NEW refresh token')
 
       return { access_token: tokenData.access_token }
     }

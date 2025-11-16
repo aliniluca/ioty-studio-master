@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { deleteAWeberTokens } from '@/lib/aweber-token-storage'
 
 export async function POST(req: NextRequest) {
   try {
-    // Clear all AWeber tokens
+    // Clear AWeber tokens from Firestore
+    await deleteAWeberTokens()
+
+    // Clear OAuth state cookie (temporary cookie for OAuth flow)
     const cookieStore = await cookies()
-    cookieStore.delete('aweber_access_token')
-    cookieStore.delete('aweber_account_id')
-    cookieStore.delete('aweber_refresh_token')
-    cookieStore.delete('aweber_token_expires_at')
     cookieStore.delete('aweber_oauth_state')
 
-    console.log('AWeber tokens cleared, redirecting to re-authentication')
+    console.log('AWeber tokens cleared from Firestore, redirecting to re-authentication')
 
     // Redirect to OAuth flow
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/aweber?action=connect`)

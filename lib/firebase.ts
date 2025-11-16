@@ -15,25 +15,27 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Only initialize on client side
+// Initialize Firebase (works on both client and server)
 let app: FirebaseApp;
 let analytics: any;
 let _db: Firestore;
 let auth: Auth;
 let googleProvider: GoogleAuthProvider;
 
+// Initialize Firebase app (can be used on both client and server)
+app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firestore (works on both client and server)
+_db = getFirestore(app);
+
+// Client-side only services
 if (typeof window !== "undefined") {
-  // Client-side initialization
-  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   analytics = getAnalytics(app);
-  _db = getFirestore(app);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
 } else {
-  // Server-side stubs
-  app = null as any;
+  // Server-side: analytics and auth are not available
   analytics = null as any;
-  _db = null as any;
   auth = null as any;
   googleProvider = null as any;
 }

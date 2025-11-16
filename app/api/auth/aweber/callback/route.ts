@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { saveAWeberTokens } from '@/lib/aweber-token-storage'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -127,46 +128,6 @@ export async function GET(req: NextRequest) {
       console.warn('Could not fetch account ID:', accountError)
     }
 
-    // Store the access token and account ID in secure cookies
-    // Cookie maxAge is longer than token expiry - we'll check expiration separately
-    const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
-
-    // Determine if we should use secure cookies (HTTPS)
-    // Check if the base URL uses https OR if we're in production
-    const isSecure = process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https') || process.env.NODE_ENV === 'production'
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax' as const,
-      path: '/',
-    }
-
-    console.log('Setting AWeber cookies with options:', {
-      ...cookieOptions,
-      maxAge: cookieMaxAge,
-      isSecure,
-      baseUrl: process.env.NEXT_PUBLIC_BASE_URL
-    })
-
-    cookieStore.set('aweber_access_token', tokenData.access_token, {
-      ...cookieOptions,
-      maxAge: cookieMaxAge,
-    })
-
-    // Store token expiration timestamp
-    cookieStore.set('aweber_token_expires_at', expiresAt.toString(), {
-      ...cookieOptions,
-      maxAge: cookieMaxAge,
-    })
-
-    if (accountId) {
-      cookieStore.set('aweber_account_id', accountId, {
-        ...cookieOptions,
-        maxAge: cookieMaxAge,
-      })
-    }
-
     // Store refresh token - AWeber ALWAYS returns a new one
     // Per AWeber docs: refresh tokens don't expire but ARE rotated on each refresh
     if (!tokenData.refresh_token) {
@@ -178,21 +139,16 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-      ...cookieOptions,
-      maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire per AWeber docs)
+    // Save tokens to Firestore (server-side storage)
+    await saveAWeberTokens({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_at: expiresAt,
+      account_id: accountId || undefined,
+      updated_at: Date.now()
     })
 
-    console.log('All AWeber tokens stored successfully in cookies')
-
-    // Verify cookies were actually set by reading them back
-    const verifyToken = cookieStore.get('aweber_access_token')
-    const verifyRefresh = cookieStore.get('aweber_refresh_token')
-    console.log('Cookie verification:', {
-      accessTokenSet: !!verifyToken?.value,
-      refreshTokenSet: !!verifyRefresh?.value,
-      cookieCount: cookieStore.getAll().length
-    })
+    console.log('AWeber tokens saved successfully to Firestore')
 
     // Clean up the OAuth state cookie
     cookieStore.delete('aweber_oauth_state')
