@@ -182,6 +182,20 @@ class AWeberServerAPI {
       const expiresAtStr = cookieStore.get('aweber_token_expires_at')?.value || '';
       const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
 
+      // Debug logging for troubleshooting cookie issues
+      console.log('AWeber getTokens - Cookie check:', {
+        hasAccessToken: !!accessToken,
+        hasAccountId: !!accountId,
+        hasRefreshToken: !!refreshToken,
+        hasExpiresAt: !!expiresAt,
+        accessTokenPreview: accessToken ? accessToken.substring(0, 10) + '...' : 'MISSING',
+        allCookies: Array.from(cookieStore.getAll()).map(c => c.name)
+      });
+
+      if (!accessToken || !accountId) {
+        console.warn('AWeber tokens missing from cookies - user needs to authorize');
+      }
+
       return { accessToken, accountId, refreshToken, expiresAt };
     } catch (error) {
       console.error('Error reading AWeber cookies:', error);

@@ -111,30 +111,39 @@ export async function GET(req: NextRequest) {
     // Cookie maxAge is longer than token expiry - we'll check expiration separately
     const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
 
-    cookieStore.set('aweber_access_token', tokenData.access_token, {
+    // Determine if we should use secure cookies (HTTPS)
+    // Check if the base URL uses https OR if we're in production
+    const isSecure = process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https') || process.env.NODE_ENV === 'production'
+
+    const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isSecure,
+      sameSite: 'lax' as const,
+      path: '/',
+    }
+
+    console.log('Setting AWeber cookies with options:', {
+      ...cookieOptions,
       maxAge: cookieMaxAge,
-      path: '/'
+      isSecure,
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL
+    })
+
+    cookieStore.set('aweber_access_token', tokenData.access_token, {
+      ...cookieOptions,
+      maxAge: cookieMaxAge,
     })
 
     // Store token expiration timestamp
     cookieStore.set('aweber_token_expires_at', expiresAt.toString(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...cookieOptions,
       maxAge: cookieMaxAge,
-      path: '/'
     })
 
     if (accountId) {
       cookieStore.set('aweber_account_id', accountId, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...cookieOptions,
         maxAge: cookieMaxAge,
-        path: '/'
       })
     }
 
@@ -146,14 +155,20 @@ export async function GET(req: NextRequest) {
     }
 
     cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...cookieOptions,
       maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire per AWeber docs)
-      path: '/'
     })
 
-    console.log('All tokens stored successfully in cookies')
+    console.log('All AWeber tokens stored successfully in cookies')
+
+    // Verify cookies were actually set by reading them back
+    const verifyToken = cookieStore.get('aweber_access_token')
+    const verifyRefresh = cookieStore.get('aweber_refresh_token')
+    console.log('Cookie verification:', {
+      accessTokenSet: !!verifyToken?.value,
+      refreshTokenSet: !!verifyRefresh?.value,
+      cookieCount: cookieStore.getAll().length
+    })
 
     // Clean up the OAuth state cookie
     cookieStore.delete('aweber_oauth_state')

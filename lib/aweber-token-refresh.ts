@@ -63,19 +63,24 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
 
       const cookieMaxAge = 60 * 60 * 24 * 30 // 30 days
 
+      // Determine if we should use secure cookies (HTTPS)
+      const isSecure = process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https') || process.env.NODE_ENV === 'production'
+
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: 'lax' as const,
+      }
+
       // Update the access token in cookies
       cookieStore.set('aweber_access_token', tokenData.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...cookieOptions,
         maxAge: cookieMaxAge,
       })
 
       // Update token expiration timestamp
       cookieStore.set('aweber_token_expires_at', expiresAt.toString(), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...cookieOptions,
         maxAge: cookieMaxAge,
       })
 
@@ -88,9 +93,7 @@ export async function refreshAWeberToken(refreshToken: string): Promise<{ access
       }
 
       cookieStore.set('aweber_refresh_token', tokenData.refresh_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...cookieOptions,
         maxAge: 60 * 60 * 24 * 365, // 1 year (refresh tokens don't expire)
       })
 
