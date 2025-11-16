@@ -1,10 +1,10 @@
 /**
- * Server-side AWeber token storage using Firestore
+ * Server-side AWeber token storage using Firestore Admin SDK
  * Tokens are stored globally (not per-user) since AWeber integration is global
+ * Uses Admin SDK to bypass security rules (server-side only)
  */
 
-import { db } from './firebase'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { adminDb } from './firebase-admin'
 
 const COLLECTION = 'app_settings'
 const DOCUMENT_ID = 'aweber_tokens'
@@ -18,12 +18,12 @@ export interface AWeberTokens {
 }
 
 /**
- * Save AWeber tokens to Firestore
+ * Save AWeber tokens to Firestore using Admin SDK
  */
 export async function saveAWeberTokens(tokens: AWeberTokens): Promise<void> {
   try {
-    const tokenRef = doc(db, COLLECTION, DOCUMENT_ID)
-    await setDoc(tokenRef, {
+    const tokenRef = adminDb.collection(COLLECTION).doc(DOCUMENT_ID)
+    await tokenRef.set({
       ...tokens,
       updated_at: Date.now()
     })
@@ -38,14 +38,14 @@ export async function saveAWeberTokens(tokens: AWeberTokens): Promise<void> {
 }
 
 /**
- * Get AWeber tokens from Firestore
+ * Get AWeber tokens from Firestore using Admin SDK
  */
 export async function getAWeberTokens(): Promise<AWeberTokens | null> {
   try {
-    const tokenRef = doc(db, COLLECTION, DOCUMENT_ID)
-    const tokenDoc = await getDoc(tokenRef)
+    const tokenRef = adminDb.collection(COLLECTION).doc(DOCUMENT_ID)
+    const tokenDoc = await tokenRef.get()
 
-    if (!tokenDoc.exists()) {
+    if (!tokenDoc.exists) {
       console.log('No AWeber tokens found in Firestore')
       return null
     }
@@ -66,12 +66,12 @@ export async function getAWeberTokens(): Promise<AWeberTokens | null> {
 }
 
 /**
- * Delete AWeber tokens from Firestore
+ * Delete AWeber tokens from Firestore using Admin SDK
  */
 export async function deleteAWeberTokens(): Promise<void> {
   try {
-    const tokenRef = doc(db, COLLECTION, DOCUMENT_ID)
-    await setDoc(tokenRef, {
+    const tokenRef = adminDb.collection(COLLECTION).doc(DOCUMENT_ID)
+    await tokenRef.set({
       access_token: '',
       refresh_token: '',
       expires_at: 0,
