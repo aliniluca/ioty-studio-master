@@ -88,12 +88,40 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
 The AWeber integration uses Firebase Admin SDK to store tokens in Firestore.
 
+**Option 1: Full Service Account (Recommended)**
+
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project
 3. Go to Project Settings > Service Accounts
 4. Click "Generate New Private Key"
 5. Download the JSON file
 6. Copy the entire JSON content and set it as `FIREBASE_SERVICE_ACCOUNT_KEY` (as a single-line string)
+
+Example:
+```bash
+FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"your-project","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"firebase-adminsdk@your-project.iam.gserviceaccount.com","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}'
+```
+
+**Option 2: Individual Environment Variables**
+
+If you prefer not to use a single JSON string, you can set individual values:
+
+```bash
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour-Private-Key-Here\n-----END PRIVATE KEY-----\n"
+```
+
+**Option 3: Minimal (Project ID Only)**
+
+For basic functionality, you can use just the project ID (already set in your client config):
+
+```bash
+# This is already set in your .env.local
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+```
+
+Note: Options 2 and 3 may have limited functionality. Option 1 is recommended for production.
 
 ### 5. Complete OAuth Flow
 

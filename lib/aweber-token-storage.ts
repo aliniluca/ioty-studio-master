@@ -7,22 +7,63 @@ import { getApp, getApps, initializeApp, cert } from 'firebase-admin/app'
 // Initialize Firebase Admin SDK
 function getFirestoreAdmin() {
   if (!getApps().length) {
-    // Check if we have service account credentials
+    // Option 1: Use service account key (recommended)
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+
+    // Option 2: Use individual credentials
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
 
     if (serviceAccount) {
       try {
         const credentials = JSON.parse(serviceAccount)
+
+        // Ensure project_id is present
+        if (!credentials.project_id) {
+          throw new Error('Service account JSON is missing project_id field')
+        }
+
         initializeApp({
-          credential: cert(credentials)
+          credential: cert(credentials),
+          projectId: credentials.project_id
         })
       } catch (error) {
         console.error('Failed to parse Firebase service account credentials:', error)
-        throw new Error('Invalid Firebase service account credentials')
+        throw new Error('Invalid Firebase service account credentials: ' + (error as Error).message)
+      }
+    } else if (projectId && clientEmail && privateKey) {
+      // Initialize with individual environment variables
+      try {
+        initializeApp({
+          credential: cert({
+            projectId,
+            clientEmail,
+            privateKey: privateKey.replace(/\\n/g, '\n')
+          }),
+          projectId
+        })
+      } catch (error) {
+        console.error('Failed to initialize Firebase Admin with individual credentials:', error)
+        throw new Error('Invalid Firebase credentials: ' + (error as Error).message)
+      }
+    } else if (projectId) {
+      // Minimal initialization with just project ID (limited functionality)
+      try {
+        initializeApp({
+          projectId
+        })
+      } catch (error) {
+        console.error('Failed to initialize Firebase Admin with project ID:', error)
+        throw new Error('Invalid Firebase project ID: ' + (error as Error).message)
       }
     } else {
-      // Fall back to default credentials (works in some environments)
-      initializeApp()
+      throw new Error(
+        'Firebase Admin SDK not configured. Please set one of:\n' +
+        '1. FIREBASE_SERVICE_ACCOUNT_KEY (full service account JSON)\n' +
+        '2. FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY\n' +
+        '3. FIREBASE_PROJECT_ID or NEXT_PUBLIC_FIREBASE_PROJECT_ID (minimal)'
+      )
     }
   }
 
