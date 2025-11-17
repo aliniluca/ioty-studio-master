@@ -119,19 +119,32 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
     })
   })
 
+  console.log('[Token Exchange] Response status:', response.status, response.statusText)
+
+  // Read response as text first to see what we got
+  const responseText = await response.text()
+  console.log('[Token Exchange] Response body:', responseText)
+
   if (!response.ok) {
-    const errorText = await response.text()
     console.error('[Token Exchange] Failed:', {
       status: response.status,
       statusText: response.statusText,
-      error: errorText,
+      error: responseText,
       redirectUri: redirectUri
     })
-    throw new Error(`Token exchange failed (${response.status}): ${errorText}`)
+    throw new Error(`Token exchange failed (${response.status}): ${responseText}`)
   }
 
-  const data = await response.json() as TokenResponse
-  console.log('[Token Exchange] Success - received tokens')
+  // Try to parse JSON
+  let data: TokenResponse
+  try {
+    data = JSON.parse(responseText) as TokenResponse
+    console.log('[Token Exchange] Success - received tokens')
+  } catch (parseError) {
+    console.error('[Token Exchange] JSON parse error:', parseError)
+    console.error('[Token Exchange] Response was:', responseText)
+    throw new Error(`Failed to parse token response: ${responseText}`)
+  }
 
   return {
     access_token: data.access_token,
