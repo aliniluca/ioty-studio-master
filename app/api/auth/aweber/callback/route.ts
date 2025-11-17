@@ -16,6 +16,16 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
 
+  // Determine app URL for redirects (fallback to request origin)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
+
+  // Determine redirect URI for token exchange
+  let redirectUri = process.env.AWEBER_REDIRECT_URI
+  if (!redirectUri) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
+    redirectUri = `${baseUrl}/api/auth/aweber/callback`
+  }
+
   console.log('[AWeber Callback] Started processing OAuth callback')
   console.log('[AWeber Callback] Environment check:', {
     hasClientId: !!process.env.AWEBER_CLIENT_ID,
@@ -24,14 +34,15 @@ export async function GET(request: NextRequest) {
     hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
     hasFirebaseKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
     hasFirebaseProjectId: !!(process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
-    redirectUri: process.env.AWEBER_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/aweber/callback`
+    redirectUri: redirectUri,
+    appUrl: appUrl
   })
 
   // Handle OAuth error
   if (error) {
     console.error('[AWeber Callback] OAuth error from AWeber:', error)
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/?aweber_error=${encodeURIComponent(error)}`
+      `${appUrl}/?aweber_error=${encodeURIComponent(error)}`
     )
   }
 
@@ -47,7 +58,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[AWeber Callback] Exchanging code for tokens...')
     // Exchange code for tokens
-    const tokenData = await exchangeCodeForTokens(code)
+    const tokenData = await exchangeCodeForTokens(code, redirectUri)
     console.log('[AWeber Callback] Token exchange successful')
 
     console.log('[AWeber Callback] Storing tokens in Firestore...')
@@ -57,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     // Redirect to success page
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/?aweber_auth=success`
+      `${appUrl}/?aweber_auth=success`
     )
   } catch (error: any) {
     console.error('[AWeber Callback] ERROR:', error)
@@ -78,14 +89,19 @@ export async function GET(request: NextRequest) {
 /**
  * Exchange authorization code for access and refresh tokens
  */
-async function exchangeCodeForTokens(code: string): Promise<AWeberTokenData> {
+async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<AWeberTokenData> {
   const clientId = process.env.AWEBER_CLIENT_ID
   const clientSecret = process.env.AWEBER_CLIENT_SECRET
-  const redirectUri = process.env.AWEBER_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/aweber/callback`
 
   if (!clientId || !clientSecret) {
     throw new Error('AWeber credentials not configured')
   }
+
+  console.log('[Token Exchange] Request details:', {
+    redirectUri,
+    hasCode: !!code,
+    codeLength: code?.length
+  })
 
   const tokenUrl = 'https://auth.aweber.com/oauth2/token'
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
